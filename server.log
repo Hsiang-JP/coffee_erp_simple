@@ -1,0 +1,12 @@
+
+> green-coffee-erp@1.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 130 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+6:01:02 PM [vite] hmr update /src/pages/GodView.jsx, /src/index.css
+6:02:00 PM [vite] hmr update /src/pages/GodView.jsx, /src/index.css
