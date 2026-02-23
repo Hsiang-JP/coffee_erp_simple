@@ -57,7 +57,7 @@ const QCReports = () => {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
         {results.map((report) => (
           <div key={report.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
             <div className="bg-stone-50 p-4 border-b border-gray-100 flex justify-between items-center">

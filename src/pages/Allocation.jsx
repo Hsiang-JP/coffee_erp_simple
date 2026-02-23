@@ -1,154 +1,99 @@
-import React, { useState } from 'react';
-import { useStore } from '../store';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useStore } from '../store/store';
 import { allocateBags } from '../utils/allocation';
 
 const Allocation = () => {
-  const coffees = useStore((state) => state.coffees);
-  const cuppingReports = useStore((state) => state.cuppingReports);
+  const { coffees, lots, cuppingReports, fetchAll, refreshTrigger } = useStore();
   
-  // Enriched Data: Join coffees with their scores
-  const enrichedCoffees = coffees.map(bag => {
-     // Find reports for this lot
-     const reports = cuppingReports.filter(r => r.lot_id === bag.lot_id);
-     // Avg score
-     const avgScore = reports.length > 0 
-        ? reports.reduce((sum, r) => sum + r.total_score, 0) / reports.length 
-        : 0;
-     return { ...bag, total_score: avgScore };
-  });
+  const [reqs, setReqs] = useState({ minScore: 80, requiredWeight: 138 });
+  const [results, setResults] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const [reqs, setReqs] = useState({
-    minScore: 85,
-    requiredWeight: 100,
-    variety: ''
-  });
-  
-  const [recommendations, setRecommendations] = useState([]);
+  // Sync data on mount or when DB changes
+  useEffect(() => { fetchAll(); }, [refreshTrigger]);
 
-  const handleAllocate = () => {
-    const results = allocateBags(reqs, enrichedCoffees);
-    setRecommendations(results);
+  // Data Enrichment: Merge Bags + Lots + Scores
+  const enrichedInventory = useMemo(() => {
+    if (!coffees || !lots) return [];
+
+    return coffees.map(bag => {
+      const lot = lots.find(l => l.id === bag.lot_id) || {};
+      const reports = (cuppingReports || []).filter(r => r.lot_id === bag.lot_id);
+      
+      // Calculate average score for the lot
+      const avgScore = reports.length > 0 
+        ? reports.reduce((sum, r) => sum + (r.total_score || 0), 0) / reports.length 
+        : 80; // Default fallback score
+
+      return {
+        ...bag,
+        variety: lot.variety,
+        process_method: lot.process_method,
+        avgScore: avgScore,
+        cost_per_kg: lot.base_farm_cost_per_kg || 0
+      };
+    });
+  }, [coffees, lots, cuppingReports]);
+
+  const handleRun = () => {
+    const options = allocateBags(reqs, enrichedInventory);
+    setResults(options);
+    if (options.length === 0) alert("No matching inventory found.");
   };
 
-  // Inventory Grid Logic
-  const GRID_STACKS = 10; // Height (Levels 1-10)
-  const GRID_PALETTES = 6; // Width (AA-AF)
   const palettes = ['AA', 'AB', 'AC', 'AD', 'AE', 'AF'];
+  const levels = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]; // Top down for display
 
-  const isOccupied = (p, level) => {
-    const code = `${p}-${level}`;
-    return enrichedCoffees.some(b => b.stock_code === code && b.status === 'Available');
+  const getBagState = (p, l) => {
+    const code = `${p}-${l}`;
+    const bag = enrichedInventory.find(b => b.stock_code === code);
+    const isSelected = results[selectedIndex]?.bags.some(b => b.stock_code === code);
+    return { bag, isSelected };
   };
-
-  const isSelected = (p, level, comboIndex) => {
-     if (comboIndex === -1) return false;
-     const code = `${p}-${level}`;
-     const combo = recommendations[comboIndex];
-     return combo && combo.bags.some(b => b.stock_code === code);
-  };
-
-  const [selectedComboIndex, setSelectedComboIndex] = useState(-1);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-       {/* Controls */}
-       <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-             <h2 className="text-xl font-bold text-gray-900 mb-4">Allocation Criteria</h2>
-             <div className="space-y-4">
-                <div>
-                   <label className="block text-sm font-medium text-gray-700">Required Weight (kg)</label>
-                   <input 
-                      type="number" 
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                      value={reqs.requiredWeight}
-                      onChange={(e) => setReqs({...reqs, requiredWeight: Number(e.target.value)})}
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-gray-700">Min Score</label>
-                   <input 
-                      type="number" 
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                      value={reqs.minScore}
-                      onChange={(e) => setReqs({...reqs, minScore: Number(e.target.value)})}
-                   />
-                </div>
-                <button 
-                   onClick={handleAllocate}
-                   className="w-full bg-emerald-600 text-white font-bold py-2 px-4 rounded hover:bg-emerald-700"
-                >
-                   Find Best Allocation
-                </button>
-             </div>
+    <div className="flex flex-col md:flex-row gap-8 p-6 bg-stone-50 min-h-screen">
+      {/* Sidebar Controls */}
+      <div className="w-full md:w-80 space-y-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+          <h2 className="text-xs uppercase tracking-widest text-stone-400 font-bold mb-4">Criteria</h2>
+          <div className="space-y-4">
+            <input type="number" value={reqs.requiredWeight} placeholder="Weight kg" className="w-full p-3 bg-stone-50 rounded-lg" onChange={e => setReqs({...reqs, requiredWeight: e.target.value})}/>
+            <input type="number" value={reqs.minScore} placeholder="Min Score" className="w-full p-3 bg-stone-50 rounded-lg" onChange={e => setReqs({...reqs, minScore: e.target.value})}/>
+            <button onClick={handleRun} className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-black transition-all">Optimize Allocation</button>
           </div>
+        </div>
 
-          {/* Recommendations */}
-          {recommendations.length > 0 && (
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">Top Recommendations</h3>
-                <div className="space-y-3">
-                   {recommendations.map((rec, idx) => (
-                      <div 
-                        key={idx}
-                        onClick={() => setSelectedComboIndex(idx)}
-                        className={`p-3 rounded-lg border cursor-pointer ${
-                           selectedComboIndex === idx ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' : 'border-gray-200'
-                        }`}
-                      >
-                         <div className="flex justify-between items-center">
-                            <span className="font-bold text-gray-900">Option {idx + 1}</span>
-                            <span className="text-sm text-emerald-700 font-mono">Score: {rec.scoreDetails.total.toFixed(2)}</span>
-                         </div>
-                         <div className="text-xs text-gray-500 mt-1">
-                            Bags: {rec.bags.map(b => b.stock_code).join(', ')}
-                         </div>
-                         <div className="flex justify-between text-xs mt-2 text-gray-600">
-                             <span>Avg Cost: ${rec.scoreDetails.avgCost.toFixed(2)}/kg</span>
-                             <span>Avg Qual: {rec.scoreDetails.avgQuality.toFixed(1)}</span>
-                         </div>
-                      </div>
-                   ))}
-                </div>
-             </div>
-          )}
-       </div>
+        {results.map((opt, i) => (
+          <div key={i} onClick={() => setSelectedIndex(i)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedIndex === i ? 'border-emerald-500 bg-emerald-50' : 'bg-white border-stone-100'}`}>
+            <div className="flex justify-between font-bold text-xs uppercase"><span>Option {i+1}</span> <span className="text-emerald-600">{opt.summary.avgQual.toFixed(1)} pts</span></div>
+            <div className="text-[10px] text-stone-400 mt-1">Cost: ${opt.summary.avgCost.toFixed(2)}/kg • Efficiency: {(opt.summary.totalPriority * 10).toFixed(0)}%</div>
+          </div>
+        ))}
+      </div>
 
-       {/* Warehouse Map */}
-       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Warehouse Map (Cora)</h2>
-          <div className="flex justify-center">
-             <div className="grid grid-cols-6 gap-2">
-                {palettes.map(p => (
-                   <div key={p} className="flex flex-col-reverse gap-1">
-                      {Array.from({length: GRID_STACKS}, (_, i) => i + 1).map(level => {
-                         const occupied = isOccupied(p, level);
-                         const active = isSelected(p, level, selectedComboIndex);
-                         
-                         return (
-                            <div 
-                               key={level}
-                               className={`w-10 h-10 border text-[10px] flex items-center justify-center rounded-sm
-                                  ${active ? 'bg-emerald-500 border-emerald-600 text-white font-bold ring-2 ring-emerald-300 z-10' : 
-                                    occupied ? 'bg-gray-800 border-gray-900 text-gray-500' : 'bg-white border-gray-200 text-gray-300'}
-                               `}
-                               title={`${p}-${level}`}
-                            >
-                               {active ? '✓' : occupied ? '' : ''}
-                            </div>
-                         );
-                      })}
-                      <div className="text-center text-xs font-bold text-gray-500 mt-1">{p}</div>
-                   </div>
-                ))}
-             </div>
-          </div>
-          <div className="mt-6 flex gap-4 text-xs justify-center">
-             <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-800 rounded-sm"></div>Occupied</div>
-             <div className="flex items-center gap-1"><div className="w-3 h-3 bg-white border border-gray-200 rounded-sm"></div>Empty</div>
-             <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>Selected</div>
-          </div>
-       </div>
+      {/* Warehouse Visualization */}
+      <div className="flex-1 bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
+        <h2 className="text-lg font-bold mb-6">Warehouse Cora <span className="text-stone-300 font-light">| Visual Map</span></h2>
+        <div className="flex gap-4 justify-center">
+          {palettes.map(p => (
+            <div key={p} className="flex flex-col gap-1.5">
+              {levels.map(l => {
+                const { bag, isSelected } = getBagState(p, l);
+                return (
+                  <div key={l} title={`${p}-${l}`} className={`w-10 h-10 rounded-md border transition-all duration-500 flex items-center justify-center
+                    ${isSelected ? 'bg-emerald-500 border-emerald-600 scale-110 shadow-lg z-10' : 
+                      bag?.status === 'Available' ? 'bg-zinc-800 border-zinc-900 opacity-100' : 'bg-stone-50 border-stone-100 opacity-20'}
+                  `}>
+                    {isSelected && <span className="text-white text-xs">✓</span>}
+                  </div>
+                );
+              })}
+              <div className="text-center text-[10px] font-bold text-stone-400 mt-2">{p}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

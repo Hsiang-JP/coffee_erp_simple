@@ -127,12 +127,12 @@ CREATE TABLE bag_milestones (
     id TEXT PRIMARY KEY,
     bag_id TEXT UNIQUE,
     contract_id TEXT,
-    current_stage TEXT DEFAULT 'Farm' CHECK (current_stage IN ('Farm', 'Cora', 'Transportation', 'Port','Final Destination')),
-    cost_at_farm REAL,
-    cost_at_warehouse REAL,
-    cost_at_export REAL,
-    cost_at_transport REAL,
-    cost_at_import REAL,
+    current_stage TEXT DEFAULT 'Farm' CHECK (current_stage IN ('Farm', 'Cora', 'Port-Export', 'Port-Import','Final Destination')),
+    
+    cost_to_warehouse REAL,
+    cost_to_export REAL,
+    cost_to_import REAL,
+    cost_to_client REAL,
     final_sale_price REAL,
     FOREIGN KEY (bag_id) REFERENCES bags(id),
     FOREIGN KEY (contract_id) REFERENCES contracts(id)

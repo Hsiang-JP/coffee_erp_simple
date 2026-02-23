@@ -41,14 +41,14 @@ This is a serverless, browser-based ERP demo for the specialty coffee industry. 
 
 ## 4. PAGE REQUIREMENTS
 
-### Page 1: The "God View" (Value & Physical Chain)
+### Page 1: The "Coffee Journey" (Value & Physical Chain)
 
 * **Goal:** Show the financial and physical journey of a single bag or lot simultaneously.
 * **UI:** * Top: SVG Map (using `react-simple-maps` with a 110m resolution GeoJSON).
 * Bottom: Vertical Stepper showing accumulated cost.
 
 
-* **Logic:** * Use a "Simulator Admin Panel" to trigger state changes. Let the user select one contract (show the public_id). Then a button to advance the state. The coffee will move on the map, also show the value changes.
+* **Logic:** * Use a button to trigger state changes. Let the user select one contract (show the public_id). Then a button to advance the state. The coffee will move on the map, also show the value changes.
 * When a stage updates (e.g., Farm -> Cora), execute an `UPDATE bag_milestones` query.
 * **GSAP Trigger:** Use a coordinate dictionary. Animate the bag icon (`x, y`) on the SVG map using GSAP `power2.inOut` easing. Animate the cost counter simultaneously.
 

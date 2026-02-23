@@ -1,73 +1,81 @@
 import React from 'react';
 
 const steps = [
-  { id: 'Farm', name: 'Farm Gate', description: 'Harvest & Processing' },
-  { id: 'Cora', name: 'Warehouse', description: 'Storage & QC' },
-  { id: 'Transportation', name: 'In Transit', description: 'Freight & Insurance' },
-  { id: 'Port', name: 'Export', description: 'Customs & Loading' },
-  { id: 'Final Destination', name: 'Client', description: 'Delivery & Final Sale' },
+  { id: 'Farm', name: 'Farm Gate', description: 'Origin Base Cost', costKey: 'cost_to_warehouse' },
+  { id: 'Cora', name: 'Warehouse', description: 'At Cora Warehouse', costKey: 'cost_to_export' },
+  { id: 'Port-Export', name: 'Export', description: 'Ready for Shipping', costKey: 'cost_to_import' },
+  { id: 'Port-Import', name: 'Import', description: 'Arrived at Destination', costKey: 'cost_to_client' },
+  { id: 'Final Destination', name: 'Client', description: 'Delivered to Roastery', costKey: null },
 ];
 
 const CostStepper = ({ currentStage, costs }) => {
-  // Determine index of current stage
   const currentIndex = steps.findIndex(s => s.id === currentStage);
 
   return (
-    <div className="mt-8">
-      <h3 className="text-lg font-medium leading-6 text-gray-900 mb-6">Value Chain Progression</h3>
-      <nav aria-label="Progress">
-        <ol role="list" className="overflow-hidden">
+    <div className="">
+      <h3 className="text-[10px] uppercase tracking-[0.2em] font-black text-stone-400 mb-8">Value Chain Timeline</h3>
+      
+      <div className="flow-root">
+        <ul role="list" className="-mb-8">
           {steps.map((step, stepIdx) => {
             const isComplete = stepIdx < currentIndex;
             const isCurrent = stepIdx === currentIndex;
+            const isPast = stepIdx <= currentIndex;
             
-            // Mock cost accumulation for display
-            let costDisplay = "$0.00";
-            if (stepIdx <= currentIndex) {
-                // Logic to show accumulated cost would go here based on the 'costs' prop
-                // For demo, we just show a placeholder or value from props if available
-                if (step.id === 'Farm') costDisplay = `$${costs?.cost_at_farm || '8.50'}`;
-                if (step.id === 'Cora') costDisplay = `$${costs?.cost_at_warehouse || '9.20'}`;
-                // ... etc
-            }
+            // The cost to get to the NEXT stage
+            const transitionCost = step.costKey ? (costs?.[step.costKey] || 0) : null;
 
             return (
-              <li key={step.name} className={`relative pb-10 ${stepIdx === steps.length - 1 ? '' : ''}`}>
-                {stepIdx !== steps.length - 1 ? (
-                  <div className={`absolute top-4 left-4 -ml-px h-full w-0.5 ${isComplete ? 'bg-emerald-600' : 'bg-gray-200'}`} aria-hidden="true" />
-                ) : null}
-                <div className="relative flex items-start group">
-                  <span className="h-9 flex items-center">
-                    <span className={`relative z-10 w-8 h-8 flex items-center justify-center rounded-full border-2 ${
-                      isCurrent ? 'bg-white border-emerald-600' : 
-                      isComplete ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-gray-300'
-                    }`}>
-                      {isComplete ? (
-                        <svg className="w-5 h-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      ) : isCurrent ? (
-                        <span className="h-2.5 w-2.5 bg-emerald-600 rounded-full" />
-                      ) : (
-                        <span className="h-2.5 w-2.5 bg-transparent rounded-full" />
-                      )}
-                    </span>
-                  </span>
-                  <div className="ml-4 min-w-0 flex flex-col">
-                    <span className={`text-sm font-semibold tracking-wide ${isCurrent ? 'text-emerald-900' : 'text-gray-500'}`}>{step.name}</span>
-                    <span className="text-sm text-gray-500">{step.description}</span>
-                  </div>
-                  <div className="ml-auto pr-4 text-right">
-                     <span className={`text-sm font-mono ${isComplete || isCurrent ? 'text-gray-900 font-bold' : 'text-gray-300'}`}>
-                        {stepIdx <= currentIndex ? costDisplay : '---'}
-                     </span>
+              <li key={step.id}>
+                <div className="relative pb-8">
+                  {/* Vertical Line */}
+                  {stepIdx !== steps.length - 1 ? (
+                    <span className={`absolute top-4 left-4 -ml-px h-full w-0.5 ${isComplete ? 'bg-emerald-500' : 'bg-stone-100'}`} aria-hidden="true" />
+                  ) : null}
+
+                  {/* Transition Cost Badge (Placed BETWEEN stages) */}
+                  {stepIdx !== steps.length - 1 && transitionCost !== null && (
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 ml-4 z-20">
+                        <div className={`flex items-center gap-2 py-1 px-2 rounded-md border text-[10px] font-mono font-bold transition-all ${
+                            isComplete && transitionCost > 0 
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                : 'bg-white border-stone-100 text-stone-300'
+                        }`}>
+                            ${transitionCost.toFixed(2)} / KG
+                        </div>
+                    </div>
+                  )}
+
+                  <div className="relative flex space-x-3">
+                    <div>
+                      <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
+                        isCurrent ? 'bg-white border-2 border-emerald-600' : 
+                        isComplete ? 'bg-emerald-600' : 'bg-stone-50 border border-stone-200'
+                      }`}>
+                        {isComplete ? (
+                          <svg className="w-5 h-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : isCurrent ? (
+                          <span className="h-2.5 w-2.5 bg-emerald-600 rounded-full" />
+                        ) : null}
+                      </span>
+                    </div>
+                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-tight ${isCurrent ? 'text-stone-900' : isPast ? 'text-stone-700' : 'text-stone-300'}`}>
+                          {step.name}
+                        </p>
+                        <p className="text-[10px] text-stone-400 mt-0.5 font-light italic">{step.description}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </li>
             );
           })}
-        </ol>
-      </nav>
+        </ul>
+      </div>
     </div>
   );
 };
