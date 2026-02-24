@@ -224,7 +224,7 @@ async function runMigrationsInternal() {
   await alignSchema();
 }
 
-async function seedDataInternal() {
+export async function seedDataInternal() {
   const checkRes = await executeRaw("SELECT count(*) as count FROM producers");
   if (checkRes.length > 0 && checkRes[0].count > 0) return; 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { execute, deleteRow, exportDatabase, importDatabase } from '../db/dbSetup';
+import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction, seedDataInternal } from '../db/dbSetup';
 import { useStore } from '../store/store';
 import EditableCell from '../components/EditableCell';
 
@@ -66,7 +66,31 @@ const DataManagement = () => {
     finally { setIsExporting(false); }
   };
 
-  const handleImport = async (e) => {
+  const handleDeleteAllData = async () => {
+    if (!confirm("Are you sure you want to delete ALL data and re-seed? This cannot be undone!")) return;
+
+    try {
+      await wrapInTransaction(async () => {
+        // Delete in reverse dependency order
+        await execute("DELETE FROM bag_milestones");
+        await execute("DELETE FROM cupping_sessions");
+        await execute("DELETE FROM cost_ledger");
+        await execute("DELETE FROM bags");
+        await execute("DELETE FROM contracts");
+        await execute("DELETE FROM lots");
+        await execute("DELETE FROM farms");
+        await execute("DELETE FROM producers");
+        await execute("DELETE FROM clients");
+      });
+      
+      await seedDataInternal(); // Re-seed the initial data
+      alert("All data deleted and re-seeded successfully!");
+      triggerRefresh();
+    } catch (err) {
+      alert("Failed to delete/re-seed all data: " + err.message);
+      console.error(err);
+    }
+  };
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -106,6 +130,10 @@ const DataManagement = () => {
             ))}
         </nav>
         <div className="p-4 border-t border-stone-100 bg-stone-50 space-y-2">
+            <button onClick={handleDeleteAllData} className="w-full text-[10px] font-bold uppercase bg-red-600 text-white py-2 rounded hover:bg-red-700 flex items-center justify-center gap-2">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Delete All Data
+            </button>
             <button onClick={handleExport} disabled={isExporting} className="w-full text-[10px] font-bold uppercase bg-white border border-stone-200 text-stone-600 py-2 rounded hover:bg-stone-100 flex items-center justify-center gap-2">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 {isExporting ? 'Exporting...' : 'Backup JSON'}
