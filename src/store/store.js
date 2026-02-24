@@ -8,6 +8,9 @@ export const useStore = create((set) => ({
   contracts: [],
   milestones: [],
   ledger: [],
+  farms: [],
+  producers: [], // Also need producers for NewFarmForm
+  clients: [], // Also need clients for contracts in DataEntry and in general
   isDevMode: false,
   refreshTrigger: 0,
 
@@ -20,7 +23,7 @@ export const useStore = create((set) => ({
     try {
       console.log("🔄 Syncing Store Data...");
       
-      const [b, l, cr, ct, m, led] = await Promise.all([
+      const [b, l, cr, ct, m, led, f, p, cli] = await Promise.all([
         execute("SELECT * FROM bags"),
         execute("SELECT * FROM lots"),
         execute("SELECT * FROM cupping_sessions"),
@@ -30,7 +33,10 @@ export const useStore = create((set) => ({
           JOIN clients cl ON c.client_id = cl.id
         `),
         execute("SELECT * FROM bag_milestones"),
-        execute("SELECT * FROM cost_ledger")
+        execute("SELECT * FROM cost_ledger"),
+        execute("SELECT * FROM farms"),
+        execute("SELECT * FROM producers"),
+        execute("SELECT * FROM clients")
       ]);
       
       set({ 
@@ -39,7 +45,10 @@ export const useStore = create((set) => ({
         cuppingReports: cr || [], 
         contracts: ct || [],
         milestones: m || [],
-        ledger: led || []
+        ledger: led || [],
+        farms: f || [],
+        producers: p || [],
+        clients: cli || []
       });
       
       console.log("✅ Store Synced");
