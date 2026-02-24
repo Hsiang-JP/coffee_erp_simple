@@ -4,11 +4,11 @@
  * Levels: 1 to 10
  */
 
-export function generateStockCodes(lastCode, count) {
+export function generateStockCodes(lastCode: string | null, count: number): string[] {
   let [currentPallet, currentLevel] = lastCode ? lastCode.split('-') : ['AA', '0'];
   let level = parseInt(currentLevel, 10);
   
-  const codes = [];
+  const codes: string[] = [];
   
   for (let i = 0; i < count; i++) {
     level++;
@@ -22,7 +22,7 @@ export function generateStockCodes(lastCode, count) {
   return codes;
 }
 
-function nextPalletCode(code) {
+function nextPalletCode(code: string): string {
   // Simple base-26 style increment for AA, AB... ZZ
   let char1 = code.charCodeAt(0);
   let char2 = code.charCodeAt(1);

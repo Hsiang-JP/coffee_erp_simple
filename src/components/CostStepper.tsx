@@ -1,6 +1,24 @@
 import React from 'react';
+import { StageType } from '../types/database';
 
-const steps = [
+interface CostStepperProps {
+  currentStage: StageType;
+  costs?: {
+    cost_to_warehouse: number;
+    cost_to_export: number;
+    cost_to_import: number;
+    cost_to_client: number;
+  };
+}
+
+interface Step {
+  id: StageType;
+  name: string;
+  description: string;
+  costKey: 'cost_to_warehouse' | 'cost_to_export' | 'cost_to_import' | 'cost_to_client' | null;
+}
+
+const steps: Step[] = [
   { id: 'Farm', name: 'Farm Gate', description: 'Origin Base Cost', costKey: 'cost_to_warehouse' },
   { id: 'Cora', name: 'Warehouse', description: 'At Cora Warehouse', costKey: 'cost_to_export' },
   { id: 'Port-Export', name: 'Export', description: 'Ready for Shipping', costKey: 'cost_to_import' },
@@ -8,7 +26,7 @@ const steps = [
   { id: 'Final Destination', name: 'Client', description: 'Delivered to Roastery', costKey: null },
 ];
 
-const CostStepper = ({ currentStage, costs }) => {
+const CostStepper: React.FC<CostStepperProps> = ({ currentStage, costs }) => {
   const currentIndex = steps.findIndex(s => s.id === currentStage);
 
   return (
@@ -33,19 +51,6 @@ const CostStepper = ({ currentStage, costs }) => {
                     <span className={`absolute top-4 left-4 -ml-px h-full w-0.5 ${isComplete ? 'bg-emerald-500' : 'bg-stone-100'}`} aria-hidden="true" />
                   ) : null}
 
-                  {/* Transition Cost Badge (Placed BETWEEN stages) */}
-                  {stepIdx !== steps.length - 1 && transitionCost !== null && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 ml-4 z-20">
-                        <div className={`flex items-center gap-2 py-1 px-2 rounded-md border text-[10px] font-mono font-bold transition-all ${
-                            isComplete && transitionCost > 0 
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                                : 'bg-white border-stone-100 text-stone-300'
-                        }`}>
-                            ${transitionCost.toFixed(2)} / KG
-                        </div>
-                    </div>
-                  )}
-
                   <div className="relative flex space-x-3">
                     <div>
                       <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
@@ -67,6 +72,17 @@ const CostStepper = ({ currentStage, costs }) => {
                           {step.name}
                         </p>
                         <p className="text-[10px] text-stone-400 mt-0.5 font-light italic">{step.description}</p>
+                        
+                        {/* Transition Cost Badge - Moved lower/inline to avoid covering text */}
+                        {transitionCost !== null && (
+                          <div className={`mt-2 inline-block py-0.5 px-1.5 rounded border text-[9px] font-mono font-bold transition-all ${
+                              isComplete && transitionCost > 0 
+                                  ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                  : 'bg-stone-50 border-stone-100 text-stone-300'
+                          }`}>
+                              Logistics: +${transitionCost.toFixed(2)} / KG
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

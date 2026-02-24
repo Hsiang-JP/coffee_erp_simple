@@ -1,9 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { gsap } from 'gsap';
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Marker, Line } from "react-simple-maps";
+import { StageType } from '../types/database';
 
-// Coordinate mapping for each stage (X, Y in SVG space)
-const STAGE_COORDS = {
+interface StageCoord {
+  name: string;
+  coordinates: [number, number];
+}
+
+const STAGE_COORDS: Record<StageType, StageCoord> = {
   'Farm': { name: 'Cusco, Peru', coordinates: [-71.9675, -13.5319] },
   'Cora': { name: 'Lima Warehouse', coordinates: [-77.0428, -12.0464] },
   'Port-Export': { name: 'Callao Port', coordinates: [-77.1261, -12.0508] },
@@ -11,9 +16,31 @@ const STAGE_COORDS = {
   'Final Destination': { name: 'Tokyo Roastery', coordinates: [139.69, 35.68] }
 };
 
-const CoffeeMap = ({ currentStage }) => {
-  const pinRef = useRef(null);
+const STAGE_ORDER: StageType[] = ['Farm', 'Cora', 'Port-Export', 'Port-Import', 'Final Destination'];
+
+interface CoffeeMapProps {
+  currentStage: StageType;
+}
+
+const CoffeeMap: React.FC<CoffeeMapProps> = ({ currentStage }) => {
+  const pinRef = useRef<SVGGElement>(null);
   const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/main/world.json";
+
+  const currentIndex = STAGE_ORDER.indexOf(currentStage);
+  
+  // Calculate visited stages and paths
+  const { visitedStages, connections } = useMemo(() => {
+    const visited = STAGE_ORDER.slice(0, currentIndex + 1);
+    const paths: { from: [number, number]; to: [number, number]; id: string }[] = [];
+    for (let i = 0; i < visited.length - 1; i++) {
+      paths.push({
+        from: STAGE_COORDS[visited[i]].coordinates,
+        to: STAGE_COORDS[visited[i+1]].coordinates,
+        id: `${visited[i]}-${visited[i+1]}`
+      });
+    }
+    return { visitedStages: visited, connections: paths };
+  }, [currentIndex]);
 
   useEffect(() => {
     if (pinRef.current) {
@@ -41,8 +68,8 @@ const CoffeeMap = ({ currentStage }) => {
         className="w-full h-full"
       >
         <Geographies geography={geoUrl}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
+          {({ geographies }: { geographies: any[] }) =>
+            geographies.map((geo: any) => (
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
@@ -54,8 +81,28 @@ const CoffeeMap = ({ currentStage }) => {
             ))
           }
         </Geographies>
+
+        {/* Trace Lines */}
+        {connections.map((path) => (
+          <Line
+            key={path.id}
+            from={path.from}
+            to={path.to}
+            stroke="#ef4444"
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            opacity={0.4}
+          />
+        ))}
         
-        {/* The Animated Bag Pin */}
+        {/* Past Markers */}
+        {visitedStages.slice(0, -1).map((stage) => (
+          <Marker key={stage} coordinates={STAGE_COORDS[stage].coordinates}>
+            <circle r={3} fill="#ef4444" opacity={0.6} />
+          </Marker>
+        ))}
+
+        {/* The Active Animated Bag Pin */}
         <Marker coordinates={STAGE_COORDS[currentStage]?.coordinates || [-71.96, -13.53]}>
           <g ref={pinRef}>
             <circle r={6} fill="#ef4444" stroke="#fff" strokeWidth={2} />

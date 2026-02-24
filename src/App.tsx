@@ -10,22 +10,22 @@ import DevHUD from './pages/DevHUD';
 import { initDB } from './db/dbSetup';
 import { useStore } from './store/store';
 
-function App() {
+const App: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isDevUrl = searchParams.get('dev')?.toLowerCase() === 'true';
   
-  const [bootState, setBootState] = useState('init'); // 'init', 'syncing', 'ready', 'error'
+  const [bootState, setBootState] = useState<'init' | 'syncing' | 'ready' | 'error'>('init');
   const [errorMsg, setErrorMsg] = useState('');
-  const fetchAll = useStore((state) => state.fetchAll);
+  const syncStore = useStore((state) => state.syncStore);
   const refreshTrigger = useStore((state) => state.refreshTrigger);
 
-  // Global Refresh Listener: Re-fetch all data when trigger increments
+  // Global Refresh Listener: Re-sync all data when trigger increments
   useEffect(() => {
     if (bootState === 'ready') {
-        fetchAll();
+        syncStore();
     }
-  }, [refreshTrigger, bootState, fetchAll]);
+  }, [refreshTrigger, bootState, syncStore]);
 
   useEffect(() => {
     let isMounted = true;
@@ -41,12 +41,12 @@ function App() {
 
         // Phase 2: Sync Store
         console.log("📊 [Safe Boot] Syncing Store...");
-        await fetchAll();
+        await syncStore();
         
         if (!isMounted) return;
         setBootState('ready');
         console.log("✅ [Safe Boot] System Ready");
-      } catch (e) {
+      } catch (e: any) {
         console.error("❌ [Safe Boot] Critical Failure:", e);
         if (isMounted) {
           setErrorMsg(e.message || 'Unknown boot error');
@@ -60,7 +60,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAll]);
+  }, [syncStore]);
 
   if (bootState === 'error') {
     return (

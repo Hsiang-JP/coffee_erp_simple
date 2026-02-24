@@ -3,13 +3,36 @@ import { gsap } from 'gsap';
 import { updateCell } from '../db/dbSetup';
 import { useStore } from '../store/store';
 
-const EditableCell = ({ tableName, id, column, value, type = 'text', options = [], forceDisabled = false }) => {
+interface Option {
+  value: string | number;
+  label: string;
+}
+
+interface EditableCellProps {
+  tableName: string;
+  id: string;
+  column: string;
+  value: any;
+  type?: 'text' | 'number' | 'select' | 'date';
+  options?: (string | Option)[];
+  forceDisabled?: boolean;
+}
+
+const EditableCell: React.FC<EditableCellProps> = ({ 
+  tableName, 
+  id, 
+  column, 
+  value, 
+  type = 'text', 
+  options = [], 
+  forceDisabled = false 
+}) => {
   const isDevMode = useStore((state) => state.isDevMode);
   const triggerRefresh = useStore((state) => state.triggerRefresh);
   
   const [editing, setEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(value);
-  const cellRef = useRef(null);
+  const cellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCurrentValue(value);
@@ -24,13 +47,15 @@ const EditableCell = ({ tableName, id, column, value, type = 'text', options = [
     try {
       await updateCell(tableName, id, column, currentValue);
       
-      gsap.to(cellRef.current, {
-        backgroundColor: '#d1fae5', 
-        duration: 0.2,
-        onComplete: () => {
-          gsap.to(cellRef.current, { backgroundColor: 'transparent', duration: 0.5 });
-        }
-      });
+      if (cellRef.current) {
+        gsap.to(cellRef.current, {
+          backgroundColor: '#d1fae5', 
+          duration: 0.2,
+          onComplete: () => {
+            gsap.to(cellRef.current, { backgroundColor: 'transparent', duration: 0.5 });
+          }
+        });
+      }
 
       setEditing(false);
       triggerRefresh();
@@ -41,7 +66,7 @@ const EditableCell = ({ tableName, id, column, value, type = 'text', options = [
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSave();
     if (e.key === 'Escape') {
       setCurrentValue(value);
@@ -51,7 +76,10 @@ const EditableCell = ({ tableName, id, column, value, type = 'text', options = [
 
   const getDisplayValue = () => {
     if (type === 'select' && options.length > 0) {
-        const option = options.find(o => (o.value === value || o === value));
+        const option = options.find(o => {
+          if (typeof o === 'object') return o.value === value;
+          return o === value;
+        });
         if (option) return typeof option === 'object' ? option.label : option;
     }
     if (value === null || value === undefined || value === '') return <span className="text-stone-300 italic">---</span>;

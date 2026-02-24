@@ -1,0 +1,77 @@
+
+---
+
+# WORKFLOW: ALLOCATION TO CONTRACT TRANSACTION
+
+**File:** `ALLOCATION_TRANSACTION.md`
+
+**Purpose:** Enable filtering by variety/flavor and implement the "Finalize Reservation" logic that converts suggestions into active contracts.
+
+## 🤖 AGENT ROLES
+
+* **Agent 1 (Frontend Master):** Expand filter UI and build the "Finalize Contract" modal. Simplify all components (Allocation, Journey, Inventory). You no longer need useMemo to join data. Simply call execute("SELECT * FROM vw_bag_details") and use the resulting objects.
+* **Agent 2 (Backend Master):** Create the SQL transaction to update bag statuses and link them to contracts. You are now responsible for maintaining vw_bag_details. Any new business logic (like a new cost calculation) must happen in the SQL View, not the React code.
+* **Agent 3 (Gatekeeper):** Ensure data consistency across the `bags`, `contracts`, and `bag_milestones` tables. Also make sure don't modify the current structure and the features that are already working. Ensure that the allocateBags utility expects the exact keys provided by the View.
+
+
+---
+
+## 1. ADVANCED FILTERING LOGIC
+
+Update the `allocateBags` utility to handle specific specialty coffee attributes:
+
+* **Variety Filter:** If selected, only include bags matching the variety (e.g., 'Geisha', 'Caturra'). 
+* **Flavor Note Filter (Fuzzy Search):** Use a case-insensitive check to see if the `primary_flavor_note` from the `cupping_session` table contains the user's input (e.g., 'Jasmine'). Act as a reward for the optimizer, for example, for the maximum quality, we want the options than contains the notes. 
+* **Available Stock Only:** Strictly filter `bags.status = 'Available'`.
+
+---
+
+## 2. THE FOUR-STRATEGY RE-SORTING
+
+The agent must implement the four specific business goals requested:
+
+1. **Best Quality:** Sort by `avgScore` DESC.
+2. **Lowest Cost:** Sort by `cost_per_kg` ASC.
+3. **FIFO (Freshness):** Sort by `lot_id` or `id` ASC (oldest first).
+4. **Operational Efficiency:** Sort by `stock_code` Level DESC (easier picking).
+
+Implement the reward for the flavor notes.
+
+---
+
+## 3. THE "FINALIZE RESERVATION" TRANSACTION (Agent 2)
+
+When the user selects a combination and clicks **"Create Contract,"** the system must execute this atomic transaction:
+
+```javascript
+/** * SQL TRANSACTION STEPS:
+ * 1. Create a new entry in the 'contracts' table.
+ * 2. Update all selected 'bags' status to 'Allocated'.
+ * 3. Set 'allocated_contract_id' for each bag to the new Contract ID.
+ * 4. Update 'bag_milestones' to record the contract link.
+ */
+
+```
+
+---
+
+## 4. UI REQUIREMENTS (Agent 1)
+
+* **Strategy Labels:** The sidebar must clearly label each option as "Best Quality," "Lowest Cost," etc.
+* **Confirmation Modal:** Before finalizing, show a summary: "You are about to allocate X bags of [Variety] to a new contract for [Client]." Show the details of what bag (public_id) and what quantity at what location. 
+* **Success Feedback:** Use a GSAP animation to "lock" the bags in the warehouse map, for the bags that are selected, change the boarder to 3 times thick. White -> Empty, BLue -> Stock, Blue with thick boarder -> Allocated.
+* **Inventory details:** When the mouse hover over the square, if the square is stocked, show the Farm, Variety, Weight of the bag.
+
+---
+
+## 5. DATABASE INTEGRITY RULES (Agent 3)
+
+* **Conflict Prevention:** Verify that no selected bag has been allocated by another user since the search was initiated.
+* **Calculated Final Price:** When creating the contract, automatically calculate the `contract_value` by summing the `cost_per_kg`  and all the lot transaction (now pass to bag) from the cost_ledger table of the selected bags.
+
+---
+
+### 🛠 ACTION ITEM
+
+Implement the **Variety** and **Flavor Note** inputs in the `Allocation.jsx` sidebar first. Once the filtering is perfect, proceed to build the `finalizeContract` function in `dbSetup.js`.
+

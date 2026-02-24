@@ -1,11 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { execute } from '../db/dbSetup';
+import { submitCuppingSession } from '../db/dbSetup';
 import { useStore } from '../store/store';
+import { Lot, DefectType } from '../types/database';
 
-const SCAACuppingForm = ({ lots }) => {
+interface SCAACuppingFormProps {
+  lots: Lot[];
+}
+
+interface CuppingFormData {
+  lot_id: string;
+  cupper_name: string;
+  fragrance: number;
+  flavor: number;
+  aftertaste: number;
+  acidity: number;
+  body: number;
+  balance: number;
+  overall: number;
+  acidity_intensity: number;
+  body_level: number;
+  uniformity_cups: number[];
+  clean_cup_cups: number[];
+  sweetness_cups: number[];
+  defect_type: DefectType;
+  defect_cups: number;
+  notes: string;
+  primary_flavor_note: string;
+  roast_level?: string;
+}
+
+const SCAACuppingForm: React.FC<SCAACuppingFormProps> = ({ lots }) => {
   const triggerRefresh = useStore((state) => state.triggerRefresh);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CuppingFormData>({
     lot_id: '',
     cupper_name: '',
     fragrance: 8.0,
@@ -33,16 +61,16 @@ const SCAACuppingForm = ({ lots }) => {
 
   useEffect(() => {
     // Agent 3: Real-time scoring math
-    const checkboxScore = (arr) => arr.filter(v => v === 1).length * 2;
+    const checkboxScore = (arr: number[]) => arr.filter(v => v === 1).length * 2;
     
     const baseSum = 
-        parseFloat(formData.fragrance) + 
-        parseFloat(formData.flavor) + 
-        parseFloat(formData.aftertaste) + 
-        parseFloat(formData.acidity) + 
-        parseFloat(formData.body) + 
-        parseFloat(formData.balance) + 
-        parseFloat(formData.overall);
+        formData.fragrance + 
+        formData.flavor + 
+        formData.aftertaste + 
+        formData.acidity + 
+        formData.body + 
+        formData.balance + 
+        formData.overall;
     
     const uniformity = checkboxScore(formData.uniformity_cups);
     const cleanCup = checkboxScore(formData.clean_cup_cups);
@@ -57,57 +85,84 @@ const SCAACuppingForm = ({ lots }) => {
     });
   }, [formData]);
 
-  const toggleCup = (field, index) => {
+  const toggleCup = (field: 'uniformity_cups' | 'clean_cup_cups' | 'sweetness_cups', index: number) => {
     const newCups = [...formData[field]];
     newCups[index] = newCups[index] === 1 ? 0 : 1;
     setFormData({ ...formData, [field]: newCups });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.lot_id) return alert("Select a Lot");
+    if (!formData.cupper_name) return alert("Enter Cupper Name");
 
-    const id = `qc-${Date.now()}`;
-    const publicId = `QC-${String(Date.now()).slice(-4)}`;
-
+    setIsSubmitting(true);
     try {
-        await execute(`
-            INSERT INTO cupping_sessions (
-                id, public_id, lot_id, cupper_name, total_score, final_score, 
-                score_acidity, score_body, score_balance, score_overall,
-                uniformity_cups, clean_cup_cups, sweetness_cups,
-                defect_type, defect_cups, primary_flavor_note, notes, cupping_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            id, publicId, formData.lot_id, formData.cupper_name, scores.total, scores.final,
-            formData.acidity, formData.body, formData.balance, formData.overall,
-            formData.uniformity_cups.join(','), formData.clean_cup_cups.join(','), formData.sweetness_cups.join(','),
-            formData.defect_type, formData.defect_cups, formData.primary_flavor_note, formData.notes,
-            new Date().toISOString().split('T')[0]
-        ]);
-        alert(`Saved QC Report: ${publicId}. Final Score: ${scores.final}`);
+        const defectPenalty = formData.defect_type === 'Taint' ? 2 : formData.defect_type === 'Fault' ? 4 : 0;
+        const defectSub = formData.defect_cups * defectPenalty;
+
+        const qcData = {
+            lot_id: formData.lot_id,
+            cupper_name: formData.cupper_name,
+            cupping_date: new Date().toISOString().split('T')[0],
+            total_score: scores.total,
+            final_score: scores.final,
+            roast_level: formData.roast_level || 'Medium',
+            score_fragrance: formData.fragrance,
+            score_flavor: formData.flavor,
+            score_aftertaste: formData.aftertaste,
+            score_acidity: formData.acidity,
+            // acidity_intensity: formData.acidity_intensity, // Not in CuppingSession interface
+            score_body: formData.body,
+            // body_level: formData.body_level, // Not in CuppingSession interface
+            score_balance: formData.balance,
+            score_overall: formData.overall,
+            score_uniformity: formData.uniformity_cups.filter(v => v === 1).length * 2,
+            score_clean_cup: formData.clean_cup_cups.filter(v => v === 1).length * 2,
+            score_sweetness: formData.sweetness_cups.filter(v => v === 1).length * 2,
+            // uniformity_cups: formData.uniformity_cups.join(','), // Not in CuppingSession interface
+            // clean_cup_cups: formData.clean_cup_cups.join(','), // Not in CuppingSession interface
+            // sweetness_cups: formData.sweetness_cups.join(','), // Not in CuppingSession interface
+            defect_type: formData.defect_type,
+            defect_cups: formData.defect_cups,
+            defect_score_subtract: defectSub,
+            primary_flavor_note: formData.primary_flavor_note,
+            notes: formData.notes
+        };
+
+        const res = await submitCuppingSession(qcData);
+        alert(`Saved QC Report: ${res.publicId}. Final Score: ${scores.final}`);
         triggerRefresh();
-    } catch (err) {
+        
+        // Reset non-essential fields
+        setFormData(prev => ({
+            ...prev,
+            primary_flavor_note: '',
+            notes: ''
+        }));
+    } catch (err: any) {
         alert(err.message);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
-  const Slider = ({ label, field }) => (
+  const Slider: React.FC<{ label: string, field: keyof CuppingFormData }> = ({ label, field }) => (
     <div className="space-y-1">
         <div className="flex justify-between items-center">
             <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">{label}</label>
-            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 rounded">{formData[field]}</span>
+            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 rounded">{formData[field] as number}</span>
         </div>
         <input 
             type="range" min="0" max="10" step="0.25"
             className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-            value={formData[field]}
-            onChange={(e) => setFormData({...formData, [field]: e.target.value})}
+            value={formData[field] as number}
+            onChange={(e) => setFormData({...formData, [field]: parseFloat(e.target.value)})}
         />
     </div>
   );
 
-  const CupSelector = ({ label, field }) => (
+  const CupSelector: React.FC<{ label: string, field: 'uniformity_cups' | 'clean_cup_cups' | 'sweetness_cups' }> = ({ label, field }) => (
     <div className="space-y-2">
         <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">{label}</label>
         <div className="flex gap-2">
@@ -190,7 +245,7 @@ const SCAACuppingForm = ({ lots }) => {
                         <select 
                             className="w-full bg-white border-red-200 rounded-lg text-xs p-2"
                             value={formData.defect_type}
-                            onChange={(e) => setFormData({...formData, defect_type: e.target.value})}
+                            onChange={(e) => setFormData({...formData, defect_type: e.target.value as DefectType})}
                         >
                             <option value="None">None</option>
                             <option value="Taint">Taint (-2)</option>
@@ -227,9 +282,10 @@ const SCAACuppingForm = ({ lots }) => {
 
         <button 
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
+            disabled={isSubmitting}
+            className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-            Authorize & Store QC Calibration
+            {isSubmitting ? 'Processing Calibration...' : 'Authorize & Store QC Calibration'}
         </button>
     </form>
   );
