@@ -59,13 +59,22 @@ export async function execute(sql, bind = []) {
  * @throws {Error} - Re-throws any error encountered during execution after rolling back.
  */
 export async function wrapInTransaction(callback) {
+  let transactionActive = false;
   try {
     await execute('BEGIN TRANSACTION');
+    transactionActive = true;
     const result = await callback();
     await execute('COMMIT');
+    transactionActive = false;
     return result;
   } catch (err) {
-    await execute('ROLLBACK');
+    if (transactionActive) {
+      try {
+        await execute('ROLLBACK');
+      } catch (rollbackErr) {
+        console.warn("Rollback failed (likely transaction already closed):", rollbackErr.message);
+      }
+    }
     throw err;
   }
 }

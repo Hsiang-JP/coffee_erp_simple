@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction, seedDataInternal } from '../db/dbSetup';
+import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction, seedDataInternal, updateCell } from '../db/dbSetup';
 import { runSimulation } from '../utils/simulation';
 import { useStore } from '../store/store';
 import EditableCell from '../components/EditableCell';
@@ -16,10 +16,101 @@ const DataManagement = () => {
     bags: [], cupping_sessions: [], contracts: [], bag_milestones: []
   });
 
-  // Table Configuration (Abbreviated for clarity)
   const tableConfig = {
-    producers: { label: 'Producers', columns: [{ key: 'name', label: 'Name', type: 'text' }] },
-    // ... rest of your config remains the same
+    producers: { 
+        label: 'Producers', 
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' }, 
+            { key: 'relationship', label: 'Relationship', type: 'select', options: ['Important', 'Direct Trade', 'Co-op', 'Other'] }
+        ] 
+    },
+    clients: { 
+        label: 'Clients', 
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' }, 
+            { key: 'relationship', label: 'Relationship', type: 'select', options: ['VIP', 'International', 'National', 'Other'] },
+            { key: 'destination_country', label: 'Country', type: 'text' },
+            { key: 'destination_port', label: 'Port', type: 'text' },
+            { key: 'destination_city', label: 'City', type: 'text' }
+        ] 
+    },
+    farms: { 
+        label: 'Farms', 
+        columns: [
+            { key: 'name', label: 'Farm Name', type: 'text' }, 
+            { key: 'producer_name', label: 'Producer (Link)', type: 'text', disabled: true }, 
+            { key: 'region', label: 'Region', type: 'select', options: ['Cusco', 'Cajamarca', 'Junin', 'Other'] }, 
+            { key: 'altitude_meters', label: 'Altitude (m)', type: 'number' }, 
+            { key: 'location', label: 'Location', type: 'text' }, 
+            { key: 'certification', label: 'Cert', type: 'select', options: ['Organic', 'Fair Trade', 'Rainforest Alliance', 'None'] }
+        ] 
+    },
+    lots: { 
+        label: 'Lots', 
+        columns: [
+            { key: 'public_id', label: 'Lot ID', type: 'text', disabled: true }, 
+            { key: 'farm_name', label: 'Farm (Link)', type: 'text', disabled: true }, 
+            { key: 'variety', label: 'Variety', type: 'select', options: ['Typica', 'Caturra', 'Catuai', 'Geisha', 'Other'] }, 
+            { key: 'process_method', label: 'Process', type: 'select', options: ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Other'] }, 
+            { key: 'total_weight_kg', label: 'Weight (kg)', type: 'number' }, 
+            { key: 'harvest_date', label: 'Harvested', type: 'text' }, 
+            { key: 'base_farm_cost_per_kg', label: 'Farm Cost', type: 'number' }
+        ] 
+    },
+    bags: { 
+        label: 'Bags', 
+        columns: [
+            { key: 'public_id', label: 'Bag ID', type: 'text', disabled: true }, 
+            { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
+            { key: 'weight_kg', label: 'Weight', type: 'number' }, 
+            { key: 'location', label: 'Location', type: 'text' }, 
+            { key: 'stock_code', label: 'Position', type: 'text' }, 
+            { key: 'status', label: 'Status', type: 'select', options: ['Available', 'Allocated', 'Shipped'] }, 
+            { key: 'contract_public_id', label: 'Contract (Link)', type: 'text', disabled: true }
+        ] 
+    },
+    contracts: { 
+        label: 'Contracts', 
+        columns: [
+            { key: 'public_id', label: 'CTR ID', type: 'text', disabled: true }, 
+            { key: 'client_name', label: 'Client (Link)', type: 'text', disabled: true }, 
+            { key: 'sale_price_per_kg', label: 'Agreed Price', type: 'number' }, 
+            { key: 'required_quality_score', label: 'Min Score', type: 'number' }, 
+            { key: 'status', label: 'Status', type: 'select', options: ['Processing', 'Fulfilled'] }
+        ] 
+    },
+    cost_ledger: { 
+        label: 'Cost Ledger', 
+        columns: [
+            { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
+            { key: 'cost_type', label: 'Type', type: 'select', options: ['Milling', 'Drying', 'Sorting', 'Lab/Grading', 'Packaging', 'Transportation', 'Other'] }, 
+            { key: 'amount_usd', label: 'Amount $', type: 'number' }, 
+            { key: 'date_incurred', label: 'Date', type: 'text' }
+        ] 
+    },
+    cupping_sessions: { 
+        label: 'Cupping Sessions', 
+        columns: [
+            { key: 'public_id', label: 'QC ID', type: 'text', disabled: true }, 
+            { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
+            { key: 'cupper_name', label: 'Cupper', type: 'text' }, 
+            { key: 'total_score', label: 'Total', type: 'number', disabled: true }, 
+            { key: 'primary_flavor_note', label: 'Top Note', type: 'text' }
+        ] 
+    },
+    bag_milestones: { 
+        label: 'Value Chain', 
+        columns: [
+            { key: 'bag_public_id', label: 'Bag (Link)', type: 'text', disabled: true }, 
+            { key: 'contract_public_id', label: 'Contract (Link)', type: 'text', disabled: true }, 
+            { key: 'current_stage', label: 'Stage', type: 'text', disabled: true }, 
+            { key: 'cost_to_warehouse', label: 'To Cora', type: 'number' }, 
+            { key: 'cost_to_export', label: 'To Export', type: 'number' }, 
+            { key: 'cost_to_import', label: 'To Import', type: 'number' }, 
+            { key: 'cost_to_client', label: 'To Client', type: 'number' }, 
+            { key: 'final_sale_price', label: 'Total Value', type: 'number', disabled: true }
+        ] 
+    }
   };
 
   useEffect(() => {
@@ -102,6 +193,9 @@ const DataManagement = () => {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold tracking-tighter uppercase italic">Dev HUD / <span className="text-zinc-500">Data Simulator</span></h1>
         <div className="flex gap-4">
+          <button onClick={runSimulation} className="px-4 py-2 bg-indigo-900/20 text-indigo-400 border border-indigo-900/50 rounded-lg hover:bg-indigo-900/40 transition-all text-xs font-bold uppercase tracking-widest">
+            Simulate Scenario
+          </button>
           <button onClick={handleDeleteAllData} className="px-4 py-2 bg-red-900/20 text-red-400 border border-red-900/50 rounded-lg hover:bg-red-900/40 transition-all text-xs font-bold uppercase tracking-widest">
             Nuke & Seed
           </button>
@@ -118,36 +212,61 @@ const DataManagement = () => {
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto mb-6 no-scrollbar border-b border-zinc-800 pb-2">
         {Object.keys(tableConfig).map(key => (
-          <button key={key} onClick={() => setActiveTab(key)} className={`px-4 py-2 rounded-t-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === key ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+          <button 
+            key={key} 
+            onClick={() => setActiveTab(key)} 
+            className={`px-4 py-2 rounded-t-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === key ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
             {tableConfig[key].label}
           </button>
         ))}
       </div>
 
       {/* Data Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-zinc-800/50 text-zinc-400 uppercase tracking-tighter font-bold">
-            <tr>
-              {tableConfig[activeTab].columns.map(col => <th key={col.key} className="p-4">{col.label}</th>)}
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800">
-            {data[activeTab]?.map(row => (
-              <tr key={row.id} className="hover:bg-zinc-800/30 transition-colors">
-                {tableConfig[activeTab].columns.map(col => (
-                  <td key={col.key} className="p-4 font-mono text-zinc-300">
-                    {row[col.key]}
-                  </td>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl relative">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+            <thead className="bg-zinc-800/50 text-zinc-400 uppercase tracking-tighter font-bold">
+                <tr>
+                <th className="p-4 w-12 text-zinc-600 font-mono">#</th>
+                {tableConfig[activeTab].columns.map(col => <th key={col.key} className="p-4">{col.label}</th>)}
+                <th className="p-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+                {data[activeTab]?.map((row, idx) => (
+                <tr key={row.id} className="hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-4 font-mono text-zinc-600">{idx + 1}</td>
+                    {tableConfig[activeTab].columns.map(col => (
+                    <td key={col.key} className="p-1 min-w-[120px]">
+                        <EditableCell 
+                            tableName={activeTab} 
+                            id={row.id} 
+                            column={col.key} 
+                            value={row[col.key]} 
+                            type={col.type || 'text'} 
+                            options={col.options}
+                            forceDisabled={col.disabled}
+                        />
+                    </td>
+                    ))}
+                    <td className="p-4 text-right">
+                    <button onClick={() => handleDelete(activeTab, row.id)} className="text-zinc-600 hover:text-red-400 font-bold px-2 transition-colors">✕</button>
+                    </td>
+                </tr>
                 ))}
-                <td className="p-4 text-right">
-                  <button onClick={() => handleDelete(activeTab, row.id)} className="text-zinc-600 hover:text-red-400 font-bold px-2">✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </tbody>
+            </table>
+        </div>
+
+        {/* Restricted Area Overlay (Triggered by isDevMode store state) */}
+        {!isDevMode && (
+            <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-[2px] z-50 flex items-center justify-center pointer-events-none">
+                <div className="bg-zinc-900 text-emerald-400 font-mono text-[10px] uppercase tracking-[0.3em] px-8 py-4 rounded shadow-2xl border border-emerald-500/20 animate-pulse pointer-events-auto">
+                    Restricted Area • Use Toggle Switch to Unlock
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );
