@@ -4,7 +4,7 @@ import Layout from './components/Layout';
 import CoffeeJourney from './pages/CoffeeJourney';
 import QCReports from './pages/QCReports';
 import Allocation from './pages/Allocation';
-import DataEntry from './pages/DataEntry';
+
 import DevHUD from './pages/DevHUD';
 
 import { initDB } from './db/dbSetup';
@@ -99,7 +99,7 @@ function App() {
         <Route path="/" element={isDevUrl ? <DevHUD /> : <CoffeeJourney />} />
         <Route path="/qc" element={<QCReports />} />
         <Route path="/allocation" element={<Allocation />} />
-        <Route path="/entry" element={<DataEntry />} />
+
         <Route path="/dev" element={<DevHUD />} />
       </Routes>
     </Layout>
