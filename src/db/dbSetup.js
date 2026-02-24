@@ -167,14 +167,13 @@ export function initDB() {
  * Ensures all tables, views, and triggers from CORE_SCHEMA exist.
  */
 export async function alignSchema() {
-  // Split by semicolon but be careful with triggers (BEGIN...END)
+  // 1. Run Core Schema (CREATE IF NOT EXISTS)
   const rawStatements = CORE_SCHEMA.split(';').map(s => s.trim()).filter(s => s.length > 0);
   const statements = [];
   let buffer = '';
   
   for (const s of rawStatements) {
     buffer += (buffer ? ';' : '') + s;
-    // Simple check for balanced BEGIN/END to handle triggers
     const begins = (buffer.match(/\bBEGIN\b/gi) || []).length;
     const ends = (buffer.match(/\bEND\b/gi) || []).length;
     
@@ -189,8 +188,35 @@ export async function alignSchema() {
       await executeRaw(sql);
     } catch (err) {
       console.error("Failed to execute migration statement:", sql, err);
-      throw err;
+      // Don't throw here, allow partial success (e.g. if trigger already exists)
     }
+  }
+
+  // 2. Dynamic Column Migration (Fix for "no such column" errors)
+  try {
+    const bagsInfo = await executeRaw("PRAGMA table_info(bags)");
+    const hasLocation = bagsInfo.some(c => c.name === 'location');
+    const hasWarehouseLocation = bagsInfo.some(c => c.name === 'warehouse_location');
+    const hasContractId = bagsInfo.some(c => c.name === 'contract_id');
+    const hasAllocatedContractId = bagsInfo.some(c => c.name === 'allocated_contract_id');
+
+    if (hasWarehouseLocation && !hasLocation) {
+      console.log("⚠️ Migrating bags.warehouse_location -> bags.location");
+      await executeRaw("ALTER TABLE bags RENAME COLUMN warehouse_location TO location");
+    }
+
+    if (hasAllocatedContractId && !hasContractId) {
+      console.log("⚠️ Migrating bags.allocated_contract_id -> bags.contract_id");
+      await executeRaw("ALTER TABLE bags RENAME COLUMN allocated_contract_id TO contract_id");
+    } else if (!hasContractId) {
+       // Only add if it doesn't exist and wasn't just renamed
+       console.log("⚠️ Adding missing column bags.contract_id");
+       await executeRaw("ALTER TABLE bags ADD COLUMN contract_id TEXT REFERENCES contracts(id)");
+    }
+
+  } catch (err) {
+    console.error("Column migration failed:", err);
+    // Proceeding, as this might be a fresh DB where columns are already correct
   }
 }
 

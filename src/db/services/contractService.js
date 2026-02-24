@@ -58,6 +58,11 @@ export async function advanceContractStage(contractId, costValue) {
       WHERE contract_id = ?
     `, [nextStage, contractId]);
 
+    // 4. Update contract status if complete
+    if (nextStage === 'Final Destination') {
+      await execute(`UPDATE contracts SET status = 'Fulfilled' WHERE id = ?`, [contractId]);
+    }
+
     return { success: true, nextStage };
   });
 }
