@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction, seedDataInternal } from '../db/dbSetup';
+import { runSimulation } from '../utils/simulation';
 import { useStore } from '../store/store';
 import EditableCell from '../components/EditableCell';
 
