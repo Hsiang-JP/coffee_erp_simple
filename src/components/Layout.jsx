@@ -16,6 +16,7 @@ const Layout = ({ children }) => {
     { name: 'Coffee Journey', path: '/' },
     { name: 'QC Reports', path: '/qc' },
     { name: 'Allocation', path: '/allocation' },
+    { name: 'Data Entry', path: '/entry' },
 
   ];
 

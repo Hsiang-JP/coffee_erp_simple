@@ -1,238 +1,263 @@
 import React, { useState, useEffect } from 'react';
-import { execute } from '../db/dbSetup';
 import { useStore } from '../store/store';
+import { execute } from '../db/dbSetup';
 
-const SCAACuppingForm = ({ lots }) => {
-  const triggerRefresh = useStore((state) => state.triggerRefresh);
+const SCAACuppingForm = () => {
+  const { farms, lots } = useStore();
+  const [lotId, setLotId] = useState('');
+  const [cupperName, setCupperName] = useState('');
+  const [cuppingDate, setCuppingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [roastLevel, setRoastLevel] = useState(7.0); // 0-10
+  const [fragranceDry, setFragranceDry] = useState(7.0); // 0-10
+  const [fragranceBreak, setFragranceBreak] = useState(7.0); // 0-10
+  const [scoreFragrance, setScoreFragrance] = useState(0.0);
+  const [scoreFlavor, setScoreFlavor] = useState(0.0);
+  const [scoreAftertaste, setScoreAftertaste] = useState(0.0);
+  const [scoreAcidity, setScoreAcidity] = useState(0.0);
+  const [acidityIntensity, setAcidityIntensity] = useState(5); // 1-10 slider
+  const [scoreBody, setScoreBody] = useState(0.0);
+  const [bodyLevel, setBodyLevel] = useState(5); // 1-10 slider
+  const [scoreBalance, setScoreBalance] = useState(0.0);
+  const [scoreOverall, setScoreOverall] = useState(0.0);
   
-  const [formData, setFormData] = useState({
-    lot_id: '',
-    cupper_name: '',
-    fragrance: 8.0,
-    flavor: 8.0,
-    aftertaste: 8.0,
-    acidity: 8.0,
-    body: 8.0,
-    balance: 8.0,
-    overall: 8.0,
-    acidity_intensity: 5,
-    body_level: 5,
-    uniformity_cups: [1, 1, 1, 1, 1],
-    clean_cup_cups: [1, 1, 1, 1, 1],
-    sweetness_cups: [1, 1, 1, 1, 1],
-    defect_type: 'None',
-    defect_cups: 0,
-    notes: '',
-    primary_flavor_note: ''
-  });
+  const [uniformityCups, setUniformityCups] = useState([1, 1, 1, 1, 1]);
+  const [cleanCupCups, setCleanCupCups] = useState([1, 1, 1, 1, 1]);
+  const [sweetnessCups, setSweetnessCups] = useState([1, 1, 1, 1, 1]);
 
-  const [scores, setScores] = useState({
-    total: 0,
-    final: 0
-  });
+  const [defectType, setDefectType] = useState('None');
+  const [defectCups, setDefectCups] = useState(0);
 
+  const [totalScore, setTotalScore] = useState(0.0);
+  const [finalScore, setFinalScore] = useState(0.0);
+  const [notes, setNotes] = useState('');
+  const [primaryFlavorNote, setPrimaryFlavorNote] = useState('');
+
+  const triggerRefresh = useStore((state) => state.triggerRefresh);
+
+  // --- Real-time Math (Agent 3 & 4) ---
   useEffect(() => {
-    // Agent 3: Real-time scoring math
-    const checkboxScore = (arr) => arr.filter(v => v === 1).length * 2;
-    
-    const baseSum = 
-        parseFloat(formData.fragrance) + 
-        parseFloat(formData.flavor) + 
-        parseFloat(formData.aftertaste) + 
-        parseFloat(formData.acidity) + 
-        parseFloat(formData.body) + 
-        parseFloat(formData.balance) + 
-        parseFloat(formData.overall);
-    
-    const uniformity = checkboxScore(formData.uniformity_cups);
-    const cleanCup = checkboxScore(formData.clean_cup_cups);
-    const sweetness = checkboxScore(formData.sweetness_cups);
-    
-    const totalScore = baseSum + uniformity + cleanCup + sweetness;
-    const defectSubtract = formData.defect_cups * (formData.defect_type === 'Taint' ? 2 : formData.defect_type === 'Fault' ? 4 : 0);
-    
-    setScores({
-        total: totalScore,
-        final: totalScore - defectSubtract
-    });
-  }, [formData]);
+    // Checkbox Scores
+    const scoreUniformity = (uniformityCups.filter(c => c === 1).length * 2.0).toFixed(1);
+    const scoreCleanCup = (cleanCupCups.filter(c => c === 1).length * 2.0).toFixed(1);
+    const scoreSweetness = (sweetnessCups.filter(c => c === 1).length * 2.0).toFixed(1);
 
-  const toggleCup = (field, index) => {
-    const newCups = [...formData[field]];
-    newCups[index] = newCups[index] === 1 ? 0 : 1;
-    setFormData({ ...formData, [field]: newCups });
+    // Defect Subtract
+    const defectScoreSubtract = defectCups * (defectType === 'Taint' ? 2 : (defectType === 'Fault' ? 4 : 0));
+
+    // Total Score
+    const currentTotalScore = (
+      parseFloat(scoreFragrance) + parseFloat(scoreFlavor) + parseFloat(scoreAftertaste) +
+      parseFloat(scoreAcidity) + parseFloat(scoreBody) + parseFloat(scoreBalance) +
+      parseFloat(scoreOverall) + parseFloat(scoreUniformity) + parseFloat(scoreCleanCup) + parseFloat(scoreSweetness)
+    ).toFixed(1);
+
+    // Final Score
+    const currentFinalScore = (parseFloat(currentTotalScore) - defectScoreSubtract).toFixed(1);
+
+    setScoreFragrance(parseFloat(fragranceDry) + parseFloat(fragranceBreak)); // Assuming Fragrance score is sum of Dry and Break
+    setTotalScore(parseFloat(currentTotalScore));
+    setFinalScore(parseFloat(currentFinalScore));
+
+  }, [
+    fragranceDry, fragranceBreak, scoreFlavor, scoreAftertaste, scoreAcidity,
+    scoreBody, scoreBalance, scoreOverall, uniformityCups, cleanCupCups, sweetnessCups,
+    defectType, defectCups
+  ]);
+
+  const handleCupToggle = (arr, setArr, index) => {
+    const newArr = [...arr];
+    newArr[index] = newArr[index] === 1 ? 0 : 1;
+    setArr(newArr);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.lot_id) return alert("Select a Lot");
+    if (!lotId || !cupperName) return;
 
-    const id = `qc-${Date.now()}`;
-    const publicId = `QC-${String(Date.now()).slice(-4)}`;
+    const publicId = `CS-${Date.now().toString().slice(-4)}`; // Simple public ID
 
-    try {
-        await execute(`
-            INSERT INTO cupping_sessions (
-                id, public_id, lot_id, cupper_name, total_score, final_score, 
-                score_acidity, score_body, score_balance, score_overall,
-                uniformity_cups, clean_cup_cups, sweetness_cups,
-                defect_type, defect_cups, primary_flavor_note, notes, cupping_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            id, publicId, formData.lot_id, formData.cupper_name, scores.total, scores.final,
-            formData.acidity, formData.body, formData.balance, formData.overall,
-            formData.uniformity_cups.join(','), formData.clean_cup_cups.join(','), formData.sweetness_cups.join(','),
-            formData.defect_type, formData.defect_cups, formData.primary_flavor_note, formData.notes,
-            new Date().toISOString().split('T')[0]
-        ]);
-        alert(`Saved QC Report: ${publicId}. Final Score: ${scores.final}`);
-        triggerRefresh();
-    } catch (err) {
-        alert(err.message);
-    }
+    await execute(
+      `INSERT INTO cupping_sessions (
+        id, public_id, lot_id, cupper_name, cupping_date, roast_level,
+        fragrance_dry, fragrance_break, score_fragrance, score_flavor, score_aftertaste,
+        score_acidity, acidity_intensity, score_body, body_level, score_balance,
+        score_overall, uniformity_cups, score_uniformity, clean_cup_cups, score_clean_cup,
+        sweetness_cups, score_sweetness, defect_type, defect_cups, defect_score_subtract,
+        total_score, final_score, notes, primary_flavor_note
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        `cup-${Date.now()}`, publicId, lotId, cupperName, cuppingDate, parseFloat(roastLevel),
+        parseFloat(fragranceDry), parseFloat(fragranceBreak), parseFloat(scoreFragrance), parseFloat(scoreFlavor), parseFloat(scoreAftertaste),
+        parseFloat(scoreAcidity), parseFloat(acidityIntensity), parseFloat(scoreBody), parseFloat(bodyLevel), parseFloat(scoreBalance),
+        parseFloat(scoreOverall), uniformityCups.join(','), parseFloat((uniformityCups.filter(c => c === 1).length * 2.0).toFixed(1)),
+        cleanCupCups.join(','), parseFloat((cleanCupCups.filter(c => c === 1).length * 2.0).toFixed(1)),
+        sweetnessCups.join(','), parseFloat((sweetnessCups.filter(c => c === 1).length * 2.0).toFixed(1)),
+        defectType, parseInt(defectCups), parseFloat((defectCups * (defectType === 'Taint' ? 2 : (defectType === 'Fault' ? 4 : 0)))),
+        totalScore, finalScore, notes, primaryFlavorNote
+      ]
+    );
+
+    // Reset form (simplified for brevity)
+    setLotId('');
+    setCupperName('');
+    setCuppingDate(new Date().toISOString().split('T')[0]);
+    setRoastLevel(7.0);
+    setFragranceDry(7.0);
+    setFragranceBreak(7.0);
+    setScoreFlavor(0.0);
+    setScoreAftertaste(0.0);
+    setScoreAcidity(0.0);
+    setAcidityIntensity(5);
+    setScoreBody(0.0);
+    setBodyLevel(5);
+    setScoreBalance(0.0);
+    setScoreOverall(0.0);
+    setUniformityCups([1, 1, 1, 1, 1]);
+    setCleanCupCups([1, 1, 1, 1, 1]);
+    setSweetnessCups([1, 1, 1, 1, 1]);
+    setDefectType('None');
+    setDefectCups(0);
+    setNotes('');
+    setPrimaryFlavorNote('');
+
+    triggerRefresh();
   };
 
-  const Slider = ({ label, field }) => (
-    <div className="space-y-1">
-        <div className="flex justify-between items-center">
-            <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">{label}</label>
-            <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 rounded">{formData[field]}</span>
-        </div>
-        <input 
-            type="range" min="0" max="10" step="0.25"
-            className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-            value={formData[field]}
-            onChange={(e) => setFormData({...formData, [field]: e.target.value})}
-        />
-    </div>
-  );
-
-  const CupSelector = ({ label, field }) => (
-    <div className="space-y-2">
-        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">{label}</label>
-        <div className="flex gap-2">
-            {formData[field].map((val, i) => (
-                <button
-                    key={i} type="button"
-                    onClick={() => toggleCup(field, i)}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                        val === 1 ? 'bg-emerald-600 border-emerald-700 text-white shadow-inner' : 'bg-white border-stone-200 text-stone-300'
-                    }`}
-                >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" /></svg>
-                </button>
-            ))}
-        </div>
-    </div>
-  );
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 bg-white rounded-2xl border border-stone-200 shadow-xl space-y-8 max-w-4xl mx-auto">
-        
-        {/* Header / Big Score */}
-        <div className="flex justify-between items-center bg-stone-900 -m-6 mb-6 p-6 rounded-t-2xl text-white">
-            <div>
-                <h2 className="text-xl font-bold tracking-tighter uppercase italic">SCAA Quality Control</h2>
-                <p className="text-stone-400 text-xs font-mono uppercase">Official Calibration Scorecard</p>
-            </div>
-            <div className="text-right">
-                <div className="text-5xl font-black text-emerald-400 leading-none">{scores.final.toFixed(2)}</div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mt-1">Final Score</div>
-            </div>
+    <form onSubmit={handleSubmit} className="p-4 space-y-6">
+      <h3 className="text-2xl font-bold mb-4">SCAA Cupping Session</h3>
+      
+      {/* Final Score Display */}
+      <div className="bg-emerald-600 text-white p-6 rounded-lg text-center shadow-lg">
+        <p className="text-sm uppercase font-bold opacity-80">Final Score</p>
+        <p className="text-6xl font-extrabold">{finalScore}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Basic Info */}
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Lot</label>
+            <select value={lotId} onChange={(e) => setLotId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                <option value="">Select Lot</option>
+                {lots.map(l => <option key={l.id} value={l.id}>{l.public_id} ({farms.find(f=>f.id===l.farm_id)?.name})</option>)}
+            </select>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-[10px] font-black uppercase text-stone-500 mb-1">Select Lot</label>
-                        <select 
-                            className="w-full bg-stone-50 border-stone-200 rounded-lg text-sm p-2 focus:ring-emerald-500"
-                            value={formData.lot_id}
-                            onChange={(e) => setFormData({...formData, lot_id: e.target.value})}
-                        >
-                            <option value="">-- Choose Lot --</option>
-                            {lots.map(l => <option key={l.id} value={l.id}>{l.public_id} - {l.variety}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black uppercase text-stone-500 mb-1">Cupper Name</label>
-                        <input 
-                            type="text" className="w-full bg-stone-50 border-stone-200 rounded-lg text-sm p-2"
-                            placeholder="John Doe"
-                            value={formData.cupper_name}
-                            onChange={(e) => setFormData({...formData, cupper_name: e.target.value})}
-                        />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-100">
-                    <Slider label="Fragrance / Aroma" field="fragrance" />
-                    <Slider label="Flavor" field="flavor" />
-                    <Slider label="Aftertaste" field="aftertaste" />
-                    <Slider label="Acidity" field="acidity" />
-                    <Slider label="Body" field="body" />
-                    <Slider label="Balance" field="balance" />
-                    <Slider label="Overall" field="overall" />
-                </div>
-            </div>
-
-            <div className="space-y-6">
-                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-6">
-                    <CupSelector label="Uniformity" field="uniformity_cups" />
-                    <CupSelector label="Clean Cup" field="clean_cup_cups" />
-                    <CupSelector label="Sweetness" field="sweetness_cups" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 bg-red-50/30 p-4 rounded-xl border border-red-100">
-                    <div>
-                        <label className="block text-[10px] font-black uppercase text-red-800 mb-1">Defect Type</label>
-                        <select 
-                            className="w-full bg-white border-red-200 rounded-lg text-xs p-2"
-                            value={formData.defect_type}
-                            onChange={(e) => setFormData({...formData, defect_type: e.target.value})}
-                        >
-                            <option value="None">None</option>
-                            <option value="Taint">Taint (-2)</option>
-                            <option value="Fault">Fault (-4)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black uppercase text-red-800 mb-1">Defect Cups</label>
-                        <input 
-                            type="number" min="0" max="5"
-                            className="w-full bg-white border-red-200 rounded-lg text-xs p-2"
-                            value={formData.defect_cups}
-                            onChange={(e) => setFormData({...formData, defect_cups: parseInt(e.target.value) || 0})}
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <input 
-                        type="text" placeholder="Primary Flavor Note (e.g. Jasmine)"
-                        className="w-full border-stone-200 rounded-lg text-sm p-3 shadow-sm"
-                        value={formData.primary_flavor_note}
-                        onChange={(e) => setFormData({...formData, primary_flavor_note: e.target.value})}
-                    />
-                    <textarea 
-                        placeholder="Detailed Cupping Notes..."
-                        className="w-full h-24 border-stone-200 rounded-lg text-sm p-3 shadow-sm"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    />
-                </div>
-            </div>
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Cupper Name</label>
+            <input type="text" value={cupperName} onChange={(e) => setCupperName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
         </div>
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Cupping Date</label>
+            <input type="date" value={cuppingDate} onChange={(e) => setCuppingDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Roast Level</label>
+            <input type="number" step="0.1" min="0" max="10" value={roastLevel} onChange={(e) => setRoastLevel(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+      </div>
 
-        <button 
-            type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
-        >
-            Authorize & Store QC Calibration
-        </button>
+      {/* Main Cupping Attributes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-lg">
+        {renderSlider('Fragrance Dry', fragranceDry, setFragranceDry, 'scoreFragrance')}
+        {renderSlider('Fragrance Break', fragranceBreak, setFragranceBreak, 'scoreFragrance')}
+        {renderSlider('Flavor', scoreFlavor, setScoreFlavor)}
+        {renderSlider('Aftertaste', scoreAftertaste, setScoreAftertaste)}
+        {renderSlider('Acidity', scoreAcidity, setScoreAcidity)}
+        <IntensitySlider label="Acidity Intensity" value={acidityIntensity} setValue={setAcidityIntensity} />
+        {renderSlider('Body', scoreBody, setScoreBody)}
+        <IntensitySlider label="Body Level" value={bodyLevel} setValue={setBodyLevel} />
+        {renderSlider('Balance', scoreBalance, setScoreBalance)}
+        {renderSlider('Overall', scoreOverall, setScoreOverall)}
+      </div>
+
+      {/* Checkboxes for Uniformity, Clean Cup, Sweetness */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CupCheckboxGroup label="Uniformity" cups={uniformityCups} setCups={setUniformityCups} />
+        <CupCheckboxGroup label="Clean Cup" cups={cleanCupCups} setCups={setCleanCupCups} />
+        <CupCheckboxGroup label="Sweetness" cups={sweetnessCups} setCups={setSweetnessCups} />
+      </div>
+
+      {/* Defects */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Defect Type</label>
+          <select value={defectType} onChange={(e) => setDefectType(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+            <option value="None">None</option>
+            <option value="Taint">Taint (-2/cup)</option>
+            <option value="Fault">Fault (-4/cup)</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Defect Cups</label>
+          <input type="number" min="0" max="5" value={defectCups} onChange={(e) => setDefectCups(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Notes</label>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows="3" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Primary Flavor Note</label>
+        <input type="text" value={primaryFlavorNote} onChange={(e) => setPrimaryFlavorNote(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+      </div>
+
+      <button type="submit" className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-md shadow-lg hover:bg-emerald-700 transition-colors">Save Cupping Session</button>
     </form>
   );
 };
+
+// --- Helper Components ---
+const renderSlider = (label, value, setValue) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700">{label}: {value.toFixed(1)}</label>
+    <input
+      type="range" min="0" max="10" step="0.25"
+      value={value}
+      onChange={(e) => setValue(parseFloat(e.target.value))}
+      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-sm"
+    />
+  </div>
+);
+
+const IntensitySlider = ({ label, value, setValue }) => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">{label}: {value}</label>
+      <input
+        type="range" min="1" max="10" step="1"
+        value={value}
+        onChange={(e) => setValue(parseFloat(e.target.value))}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-sm"
+      />
+    </div>
+  );
+
+const CupCheckboxGroup = ({ label, cups, setCups }) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <div className="flex space-x-2">
+      {cups.map((isChecked, index) => (
+        <button
+          key={index}
+          type="button"
+          onClick={() => {
+            const newCups = [...cups];
+            newCups[index] = isChecked === 1 ? 0 : 1;
+            setCups(newCups);
+          }}
+          className={`p-2 rounded-full border ${isChecked === 1 ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-gray-200 border-gray-300 text-gray-600'}`}
+          aria-label={`${label} cup ${index + 1}`}
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M18.5 3H6.5A2.5 2.5 0 004 5.5v13A2.5 2.5 0 006.5 21h11A2.5 2.5 0 0021 18.5V5.5A2.5 2.5 0 0018.5 3zM15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 
 export default SCAACuppingForm;
