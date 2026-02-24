@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useStore } from '../store/store';
 import { initDB, execute } from '../db/dbSetup';
+import { buyLotTransaction } from '../db/services/lotService';
+import { advanceContractStage } from '../db/services/contractService';
 
 export function useCoffeeData() {
   const setCoffees = useStore((state) => state.setCoffees);
@@ -63,4 +65,22 @@ export function useCoffeeData() {
       isMounted = false;
     };
   }, [setCoffees, setContracts, setCuppingReports, setMilestones, refreshTrigger]);
+}
+
+export function useBuyLot() {
+  const triggerRefresh = useStore((state) => state.triggerRefresh);
+  return async (lotData) => {
+    const res = await buyLotTransaction(lotData);
+    triggerRefresh();
+    return res;
+  };
+}
+
+export function useAdvanceStage() {
+  const triggerRefresh = useStore((state) => state.triggerRefresh);
+  return async (contractId, costValue) => {
+    const res = await advanceContractStage(contractId, costValue);
+    triggerRefresh();
+    return res;
+  };
 }

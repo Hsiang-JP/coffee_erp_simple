@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { execute, buyLotTransaction } from '../db/dbSetup';
+import { execute } from '../db/dbSetup';
 import { useStore } from '../store/store';
+import { useBuyLot } from '../hooks/useCoffeeData';
 import SCAACuppingForm from '../components/SCAACuppingForm';
 
 const DataEntry = () => {
   const triggerRefresh = useStore((state) => state.triggerRefresh);
   const refreshTrigger = useStore((state) => state.refreshTrigger);
-  
-  const [activeTab, setActiveTab] = useState('lot');
+  const buyLot = useBuyLot();
   const [producers, setProducers] = useState([]);
   const [farms, setFarms] = useState([]);
   const [lots, setLots] = useState([]);
@@ -54,7 +54,7 @@ const DataEntry = () => {
   const handleLotSubmit = async (e) => {
     e.preventDefault();
     try {
-        const res = await buyLotTransaction({
+        const res = await buyLot({
             farm_id: lotForm.farm_id,
             variety: lotForm.variety,
             process_method: lotForm.process,
@@ -62,7 +62,6 @@ const DataEntry = () => {
             base_farm_cost_per_kg: parseFloat(lotForm.cost)
         });
         alert(`SUCCESS: Received Lot ${res.lotPublicId}. Generated ${res.numBags} bags with unique stock codes.`);
-        triggerRefresh();
     } catch (err) {
         alert(err.message);
     }

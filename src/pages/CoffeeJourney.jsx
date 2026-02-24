@@ -1,18 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store/store.js';
-import { advanceContractStage, getNextStage } from '../db/dbSetup';
+import { getNextStage } from '../db/dbSetup';
+import { useAdvanceStage } from '../hooks/useCoffeeData';
 import CoffeeMap from '../components/CoffeeMap.jsx';
 import CostStepper from '../components/CostStepper.jsx';
 
 const CoffeeJourney = () => {
-  const { coffees, contracts, milestones, lots, ledger, triggerRefresh } = useStore();
+  const { coffees, contracts, milestones, lots, ledger } = useStore();
   const [selectedContractId, setSelectedContractId] = useState('');
   const [costInput, setCostInput] = useState('');
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const advanceStage = useAdvanceStage();
 
   // Memoized Logic for "God View" averages
   const { contractBags, metrics, currentStage, nextStage } = useMemo(() => {
-    const bags = coffees.filter(b => b.allocated_contract_id === selectedContractId);
+    const bags = coffees.filter(b => b.contract_id === selectedContractId);
     const relevantMilestones = milestones.filter(m => bags.some(b => b.id === m.bag_id));
     
     if (relevantMilestones.length === 0) {
@@ -65,8 +67,7 @@ const CoffeeJourney = () => {
     if (!selectedContractId || !nextStage) return;
     setIsAdvancing(true);
     try {
-      await advanceContractStage(selectedContractId, parseFloat(costInput) || 0);
-      triggerRefresh();
+      await advanceStage(selectedContractId, parseFloat(costInput) || 0);
       setCostInput('');
     } catch (e) {
       alert(e.message);
