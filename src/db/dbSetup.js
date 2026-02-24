@@ -7,7 +7,7 @@ let sqlite3 = null;
 let db = null;
 let dbInitPromise = null;
 
-const DB_NAME = 'green_coffee_erp_v8'; 
+const DB_NAME = 'green_coffee_erp_v15'; 
 
 export const STAGE_ORDER = ['Farm', 'Cora', 'Port-Export', 'Port-Import', 'Final Destination'];
 

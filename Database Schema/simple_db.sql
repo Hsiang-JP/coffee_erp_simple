@@ -63,12 +63,12 @@ CREATE TABLE bags (
     public_id TEXT, -- for human user readability
     lot_id TEXT NOT NULL,
     weight_kg REAL NOT NULL,
-    warehouse_location TEXT DEFAULT 'Cora', 
+    location TEXT DEFAULT 'Cora' CHECK(location IN ('Cora', 'Port-Export', 'Transport', 'Port-Import', 'Final Destination')),
     stock_code TEXT, 
     status TEXT CHECK(status IN ('Available', 'Allocated', 'Shipped')),
-    allocated_contract_id TEXT,
+    contract_id TEXT,
     FOREIGN KEY (lot_id) REFERENCES lots(id),
-    FOREIGN KEY (allocated_contract_id) REFERENCES contracts(id)
+    FOREIGN KEY (contract_id) REFERENCES contracts(id)
 );
 
 -- ==========================================
@@ -118,11 +118,11 @@ CREATE TABLE contracts (
     sale_price_per_kg REAL,
     required_quality_score REAL,
     required_flavor_profile TEXT,
-    status TEXT CHECK(status IN ('Offered', 'Pending Allocation', 'Fulfilled')),
+    status TEXT CHECK(status IN ('Processing', 'Fulfilled')),
     FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 
--- 6. THE JOURNEY: THE "GOD VIEW" STEPPER
+-- 6. THE JOURNEY
 CREATE TABLE bag_milestones (
     id TEXT PRIMARY KEY,
     bag_id TEXT UNIQUE,

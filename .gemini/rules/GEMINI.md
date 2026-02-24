@@ -1,6 +1,6 @@
 
 ```markdown
-# GREEN COFFEE ERP: "GOD VIEW" PWA DEMO
+# GREEN COFFEE ERP: Coffee Journey
 **Version:** 1.0.0
 **Tech Stack:** React (Vite/PWA), wa-sqlite (Browser WASM Database), GSAP (Animations), React-Simple-Maps (SVG Map), Zustand (State Management), TailwindCSS (Styling).
 
