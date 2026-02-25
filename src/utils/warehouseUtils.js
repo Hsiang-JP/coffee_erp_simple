@@ -1,13 +1,18 @@
 /**
- * Agent 2 & Agent 4: Warehouse Logic
- * Pallet codes: AA to ZZ
- * Levels: 1 to 10
+ * Agent 4: Warehouse Logic - Lot-Based Clustering
+ * Each lot starts its own stack for better traceability and easier physical fetching.
  */
-
-export function generateStockCodes(lastCode, count) {
+export function generateStockCodes(lastCode, count, isNewLot = true) {
   let [currentPallet, currentLevel] = lastCode ? lastCode.split('-') : ['AA', '0'];
-  let level = parseInt(currentLevel, 10);
   
+  // The Boss Directive: If it's a new lot, move to the next palette 
+  // to avoid physical mixing of different coffees.
+  if (isNewLot && lastCode) {
+    currentPallet = nextPalletCode(currentPallet);
+    currentLevel = '0';
+  }
+
+  let level = parseInt(currentLevel, 10);
   const codes = [];
   
   for (let i = 0; i < count; i++) {
@@ -23,16 +28,12 @@ export function generateStockCodes(lastCode, count) {
 }
 
 function nextPalletCode(code) {
-  // Simple base-26 style increment for AA, AB... ZZ
-  let char1 = code.charCodeAt(0);
-  let char2 = code.charCodeAt(1);
-  
-  char2++;
-  if (char2 > 90) { // 'Z'
-    char2 = 65; // 'A'
-    char1++;
-    if (char1 > 90) char1 = 65; // Reset to A if ZZ reached (unlikely for demo)
+  const chars = code.split('').map(c => c.charCodeAt(0));
+  // Increment from right to left (ZZ style)
+  for (let i = chars.length - 1; i >= 0; i--) {
+    chars[i]++;
+    if (chars[i] <= 90) break; // 'Z'
+    chars[i] = 65; // Reset to 'A' and carry over to the next character
   }
-  
-  return String.fromCharCode(char1, char2);
+  return String.fromCharCode(...chars);
 }

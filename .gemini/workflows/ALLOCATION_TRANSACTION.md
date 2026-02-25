@@ -20,7 +20,7 @@ Update the `allocateBags` utility to handle specific specialty coffee attributes
 
 ---
 
-## 2. THE FOUR-STRATEGY RE-SORTING
+## 2. THE THREE-STRATEGY RE-SORTING
 
 The agent must implement the four specific business goals requested:
 
@@ -28,7 +28,7 @@ The agent must implement the four specific business goals requested:
 2. **Lowest Cost:** Sort by `cost_per_kg` ASC.
 3. **FIFO (Freshness):** Sort by `lot_id` or `id` ASC (oldest first).
 
-The operational cost is 
+The operational cost is used to decide the final options in each categories. For example, in the best quality category, there are 3 options all have the same `score`, then the option with the minimum operational cost will be seleceted (normally the bags on the top level)
 
 Implement the reward for the flavor notes.
 
@@ -36,17 +36,9 @@ Implement the reward for the flavor notes.
 
 ## 3. THE "FINALIZE RESERVATION" TRANSACTION (Agent 2)
 
-When the user selects a combination and clicks **"Create Contract,"** the system must execute this atomic transaction:
+When the user selects a combination and clicks **"Create Contract,"** the system will register a new contract with the status "Processing"
 
-```javascript
-/** * SQL TRANSACTION STEPS:
- * 1. Create a new entry in the 'contracts' table.
- * 2. Update all selected 'bags' status to 'Allocated'.
- * 3. Set 'allocated_contract_id' for each bag to the new Contract ID.
- * 4. Update 'bag_milestones' to record the contract link.
- */
 
-```
 
 ---
 
@@ -55,7 +47,7 @@ When the user selects a combination and clicks **"Create Contract,"** the system
 * **Strategy Labels:** The sidebar must clearly label each option as "Best Quality," "Lowest Cost," etc.
 * **Confirmation Modal:** Before finalizing, show a summary: "You are about to allocate X bags of [Variety] to a new contract for [Client]." Show the details of what bag (public_id) and what quantity at what location. 
 * **Success Feedback:** Use a GSAP animation to "lock" the bags in the warehouse map, for the bags that are selected, change the boarder to 3 times thick. White -> Empty, BLue -> Stock, Blue with thick boarder -> Allocated.
-* **Inventory details:** When the mouse hover over the square, if the square is stocked, show the Farm, Variety, Weight of the bag.
+* **Inventory details:** When the mouse hover over the square, if the square is stocked, show the Farm, Variety, Weight of the bag and the score.
 
 ---
 

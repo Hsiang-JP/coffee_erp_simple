@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Added useMemo
 import { useStore } from '../store/store';
 import { wrapInTransaction } from '../db/dbSetup';
 import { execute } from '../db/dbSetup';
@@ -16,6 +16,7 @@ const NewProducerForm = () => {
     e.preventDefault();
     if (!name) return;
     await execute('INSERT INTO producers (id, name, relationship) VALUES (?, ?, ?)', [`prod-${Date.now()}`, name, relationship]);
+    alert("Successful");
     setName('');
     setRelationship('Other');
     triggerRefresh();
@@ -59,6 +60,7 @@ const NewFarmForm = () => {
       'INSERT INTO farms (id, producer_id, name, region, altitude_meters, location, certification) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [`farm-${Date.now()}`, producerId, name, region, parseFloat(altitude) || null, location, certification]
     );
+    alert("Successful");
     setProducerId('');
     setName('');
     setRegion('Other');
@@ -119,30 +121,44 @@ const NewFarmForm = () => {
 };
 
 const BuyCoffeeForm = () => {
-  const { farms, lots } = useStore();
+  const { farms } = useStore();
   const [farmId, setFarmId] = useState('');
   const [variety, setVariety] = useState('Other');
   const [processMethod, setProcessMethod] = useState('Other');
-  const [totalWeight, setTotalWeight] = useState('');
+  const [inputWeight, setInputWeight] = useState(''); // Raw user input
   const [baseCost, setBaseCost] = useState('');
-  const buyLot = useBuyLot(); // Use the refactored hook
+  const buyLot = useBuyLot();
+
+  // --- Real-time Weight Math ---
+  const BAG_SIZE = 69.0;
+  
+  // Calculate how much we need to round up to reach the next full 69kg bag
+  const roundedWeight = useMemo(() => {
+    const val = parseFloat(inputWeight);
+    if (isNaN(val) || val <= 0) return 0;
+    return Math.ceil(val / BAG_SIZE) * BAG_SIZE;
+  }, [inputWeight]);
+
+  const needsRounding = parseFloat(inputWeight) > 0 && parseFloat(inputWeight) !== roundedWeight;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!farmId || !totalWeight || !baseCost) return;
+    if (!farmId || roundedWeight <= 0 || !baseCost) return;
     
     try {
       await buyLot({
         farm_id: farmId,
         variety,
         process_method: processMethod,
-        total_weight_kg: parseFloat(totalWeight),
+        total_weight_kg: roundedWeight, // Use the rounded value for DB insertion
         base_farm_cost_per_kg: parseFloat(baseCost),
       });
+      alert("Successful");
+      // Reset form
       setFarmId('');
       setVariety('Other');
       setProcessMethod('Other');
-      setTotalWeight('');
+      setInputWeight('');
       setBaseCost('');
     } catch (e) {
       alert("Failed to buy lot: " + e.message);
@@ -150,44 +166,78 @@ const BuyCoffeeForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-4">
-      <h3 className="text-lg font-semibold">Buy Coffee Lot</h3>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Farm</label>
-        <select value={farmId} onChange={(e) => setFarmId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="">Select Farm</option>
-          {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
+    <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] space-y-8 shadow-sm border border-stone-100 max-w-2xl">
+      <div className="border-b border-stone-100 pb-4">
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Inventory Intake</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Standard 69kg Bag Calibration</p>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Variety</label>
-        <select value={variety} onChange={(e) => setVariety(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="Typica">Typica</option>
-          <option value="Caturra">Caturra</option>
-          <option value="Catuai">Catuai</option>
-          <option value="Geisha">Geisha</option>
-          <option value="Other">Other</option>
-        </select>
+
+      <div className="grid grid-cols-1 gap-6">
+        {/* Farm Selection */}
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Source Farm</label>
+          <select value={farmId} onChange={(e) => setFarmId(e.target.value)} 
+            className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800">
+            <option value="">Select Farm</option>
+            {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </div>
+
+        {/* Variety & Process */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Variety</label>
+            <select value={variety} onChange={(e) => setVariety(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm">
+              <option value="Typica">Typica</option>
+              <option value="Caturra">Caturra</option>
+              <option value="Geisha">Geisha</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Process</label>
+            <select value={processMethod} onChange={(e) => setProcessMethod(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm">
+              <option value="Washed">Washed</option>
+              <option value="Natural">Natural</option>
+              <option value="Honey">Honey</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Weight Input with Rounding Logic */}
+        <div className="relative">
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Approximate Weight (kg)</label>
+          <input type="number" step="0.01" value={inputWeight} onChange={(e) => setInputWeight(e.target.value)} 
+            className="w-full bg-stone-50 border-none rounded-xl p-4 text-lg font-black text-zinc-900" placeholder="e.g. 500" />
+          
+          {needsRounding && (
+            <div className="mt-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+              <span className="text-xl">⚖️</span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Inventory Calibration Warning</p>
+                <p className="text-xs text-amber-700 font-medium">
+                  Rounding up to <span className="font-black">{roundedWeight}kg</span> ({Math.ceil(roundedWeight/69)} full bags).
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Financials */}
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Base Farm Cost ($/kg)</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
+            <input type="number" step="0.01" value={baseCost} onChange={(e) => setBaseCost(e.target.value)} 
+              className="w-full bg-stone-50 border-none rounded-xl p-4 pl-8 text-sm font-bold" />
+          </div>
+        </div>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Process Method</label>
-        <select value={processMethod} onChange={(e) => setProcessMethod(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="Washed">Washed</option>
-          <option value="Natural">Natural</option>
-          <option value="Honey">Honey</option>
-          <option value="Anaerobic">Anaerobic</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Total Weight (kg)</label>
-        <input type="number" step="0.01" value={totalWeight} onChange={(e) => setTotalWeight(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Base Cost ($/kg)</label>
-        <input type="number" step="0.01" value={baseCost} onChange={(e) => setBaseCost(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-      </div>
-      <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-md">Buy Lot</button>
+
+      <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] hover:bg-black transition-all shadow-xl shadow-stone-200">
+        Authorize Purchase & Generate Bags
+      </button>
     </form>
   );
 };
@@ -207,6 +257,7 @@ const ClientForm = () => {
       'INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)',
       [`cli-${Date.now()}`, name, relationship, country, port, city]
     );
+    alert("Successful");
     setName('');
     setRelationship('Other');
     setCountry('');

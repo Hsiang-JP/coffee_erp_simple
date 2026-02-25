@@ -15,21 +15,16 @@ Then start making this brand new data entry page.
 * **Agent 3 (Gatekeeper):** Handle URL routing for Dev Mode, form validation, and real-time math for the cupping scores.
 * **Agent 4 (The Boss):** Ensure the business logic (69kg bag standards, SCAA scoring math, and warehouse pallet stacking) is perfectly accurate.
 
----
-
-## 1. DEV MODE TOGGLE (Agent 3)
-* **The Logic:** The previous raw "Spreadsheet/Maintenance CRUD" page must be completely hidden from the main navigation. 
-* **Implementation:** Check the URL for `?dev=true` (e.g., `new URLSearchParams(window.location.search).get('dev') === 'true'`).
-* **UI:** Only render the "Database Admin" tab/link if this parameter is true. Otherwise, Page 4 defaults strictly to the business "Data Entry" flow.
 
 ---
 
-## 2. PAGE 4 UI STRUCTURE: "DATA INTAKE" (Agent 1)
+## 1. PAGE 4 UI STRUCTURE: "DATA INTAKE" (Agent 1)
 Build a sleek, tabbed interface or a side-nav layout containing 4 distinct intake forms:
-1.  **Nuevo Productor:** (Name, Relationship).
-2.  **Nueva Finca:** (Producer Dropdown, Name, Region, Altitude, Location, Certification).
-3.  **Compra de Lote (Intake):** (Farm Dropdown, Variety, Process, Total Weight, Base Cost). *This triggers the complex auto-bag logic.*
-4.  **Sesión de Catación:** The SCAA QC Form.
+1.  **New Priducer:** (Name, Relationship).
+2.  **New Farm:** (Producer Dropdown, Name, Region, Altitude, Location, Certification).
+3.  **Buy coffee:** (Farm Dropdown, Variety, Process, Total Weight, Base Cost). *This triggers the complex auto-bag logic.*
+4.  **Cupping:** The SCAA QC Form.
+5. **New Client:** Add new client. 
 
 ---
 
@@ -38,7 +33,7 @@ When a user submits the "Compra de Lote" form, the system isn't just saving a lo
 
 ### The Math (Agent 4)
 * Standard bag size in Peru = `69.0 kg`.
-* `numberOfBags = Math.floor(total_weight_kg / 69)`. (For the demo, ignore partial bags or put the remainder in one final bag).
+* `numberOfBags = Math.floor(total_weight_kg / 69)`. (For the demo, ignore partial bags, round up the quantity to the next multiple of the bag weight. For example, 100kg => 2 bags 138kg
 
 
 
@@ -51,17 +46,7 @@ The `stock_code` format is `[Pallet]-[Level]`.
     3. Same lots must stack together continuously. 
 
 ### The SQL Transaction (Agent 2)
- the generateStockCodes utility `src/utils/warehouseUtils.js`  When handling the 'Compra de Lote' submit event, your SQL transaction must:
-
-Run SELECT stock_code FROM bags ORDER BY stock_code DESC LIMIT 1; to get the lastStockCode.
-
-Calculate numberOfBags = Math.floor(total_weight_kg / 69).
-
-Call const newCodes = generateStockCodes(lastStockCode, numberOfBags).
-
-Use a for loop to execute INSERT INTO bags and INSERT INTO bag_milestones using the array of newCodes. Wrap everything in a BEGIN TRANSACTION and COMMIT."
-
-```
+USe the db-first logic to design the algorithm The concept is always assign the stock_code from low to high.
 
 ---
 
@@ -82,7 +67,7 @@ This is a massive form. Do not just output 30 text inputs. It must look like a d
 
 ### Real-Time Math (Agent 3)
 
-The Frontend must calculate the scores in real-time as the user moves sliders, *before* sending to the database:
+The total score trigger is defined in the `schema.js`
 
 1. **Checkbox Scores:** Each checked cup = 2 points. (e.g., `'1,1,1,1,1'` = 10.0 points). Calculate this for Uniformity, Clean Cup, and Sweetness.
 2. **Defect Subtract:** `defect_score_subtract = defect_cups * (defect_type === 'Taint' ? 2 : 4)`.
@@ -93,7 +78,6 @@ Display the `Final Score` prominently at the top of the form in a large, bold fo
 
 ## 🛠 REQUIRED ACTIONS
 
-* **Agent 3:** Set up the `?dev=true` router logic first.
 * **Agent 2:** Write the Auto-Bagging SQL Transaction and the `stock_code` generator utility.
 * **Agent 1:** Build the Cupping Form component utilizing Tailwind Grid to fit all fields cleanly on screen without overwhelming the user.
 

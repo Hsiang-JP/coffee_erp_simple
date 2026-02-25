@@ -10,7 +10,7 @@ const Layout = ({ children }) => {
   const searchParams = new URLSearchParams(window.location.search);
   const isDevUrl = searchParams.get('dev')?.toLowerCase() === 'true';
   const isDevPage = location.pathname === '/dev' || location.pathname === '/'; // Including / since home can be dev view
-  const showDevToggle = isDevUrl || isDevPage;
+  const showDevToggle = true;
 
   const navItems = [
     { name: 'Coffee Journey', path: '/' },

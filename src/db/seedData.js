@@ -16,9 +16,16 @@ export const SEED_DATA = {
     { id: 'cl-1', lot_id: 'lot-1', cost_type: 'Milling', amount_usd: 345.00, date_incurred: '2023-06-20' },
     { id: 'cl-2', lot_id: 'lot-1', cost_type: 'Lab/Grading', amount_usd: 138.00, date_incurred: '2023-06-25' }
   ],
-  contracts: [
-    { id: 'con-1', public_id: 'CTR-24-001', client_id: 'cli-1', sale_price_per_kg: 15.50, status: 'Processing' }
-  ],
+    contracts: [
+      {
+        id: 'con-1',
+        public_id: 'CTR-24-001',
+        client_id: 'cli-1',
+        required_quality_score: 85.0,
+        sale_price_per_kg: 15.50,
+        status: 'Processing'
+      }
+    ],
   bags: Array.from({ length: 10 }, (_, i) => ({
     id: `bag-1-${i + 1}`,
     public_id: `B-1-${i + 1}`,

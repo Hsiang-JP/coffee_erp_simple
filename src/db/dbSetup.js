@@ -138,6 +138,7 @@ async function executeRaw(sql, bind = []) {
 }
 
 export function initDB() {
+  // 1. Singleton Lock: Prevent multiple initialization attempts
   if (dbInitPromise) return dbInitPromise;
 
   dbInitPromise = (async () => {
@@ -151,12 +152,14 @@ export function initDB() {
       const vfs = new IDBMinimalVFS(DB_NAME);
       sqlite3.vfs_register(vfs, true);
 
+      // 2. Open Connection with URI support for better locking
       db = await sqlite3.open_v2(
         DB_NAME,
         SQLite.SQLITE_OPEN_READWRITE | SQLite.SQLITE_OPEN_CREATE | SQLite.SQLITE_OPEN_URI,
         vfs.name
       );
 
+      // 3. DB-First Synchronization
       await alignSchema();
       await seedDataInternal();
       
@@ -164,7 +167,15 @@ export function initDB() {
       return db;
     } catch (err) {
       console.error("❌ Failed to init DB:", err);
+      
+      // 4. Reset promise so the next attempt can retry
       dbInitPromise = null; 
+
+      // 5. I/O Error Handling: If the disk is locked, we must notify the user to refresh
+      if (err.message.includes('disk I/O error')) {
+        console.warn("🚨 Database Lock Detected. This is likely due to multiple tabs or React Strict Mode.");
+      }
+      
       throw err;
     }
   })();

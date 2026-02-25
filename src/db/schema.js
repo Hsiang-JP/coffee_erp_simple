@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS contracts (
     id TEXT PRIMARY KEY,
     public_id TEXT,
     client_id TEXT NOT NULL,
-    sale_price_per_kg REAL,
-    required_quality_score REAL,
+    sale_price_per_kg REAL NOT NULL,
+    required_quality_score REAL NOT NULL,
     required_flavor_profile TEXT,
     status TEXT CHECK(status IN ('Processing', 'Fulfilled')),
     FOREIGN KEY (client_id) REFERENCES clients(id)
@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS bag_milestones (
 -- ==========================================
 -- 5. VIEWS & TRIGGERS
 -- ==========================================
+-- Update in CORE_SCHEMA Section 5
 CREATE VIEW IF NOT EXISTS available_inventory_optimization AS
 SELECT 
     b.*,
@@ -143,6 +144,7 @@ SELECT
     l.process_method,
     l.base_farm_cost_per_kg,
     CAST(SUBSTR(b.stock_code, INSTR(b.stock_code, '-') + 1) AS INTEGER) AS storage_level,
+    -- We use total_score which, via our triggers, only sums the category scores
     COALESCE((SELECT AVG(total_score) FROM cupping_sessions WHERE lot_id = b.lot_id), 80.0) AS quality_score
 FROM bags b
 JOIN lots l ON b.lot_id = l.id
@@ -250,4 +252,30 @@ BEGIN
     )
     WHERE bag_id IN (SELECT id FROM bags WHERE lot_id = OLD.lot_id);
 END;
+
+
+-- Trigger for New Cupping Sessions
+CREATE TRIGGER IF NOT EXISTS calculate_cupping_scores_insert
+AFTER INSERT ON cupping_sessions
+FOR EACH ROW
+BEGIN
+    UPDATE cupping_sessions
+    SET 
+        total_score = (
+            NEW.score_fragrance + NEW.score_flavor + NEW.score_aftertaste + 
+            NEW.score_acidity + NEW.score_body + NEW.score_balance + 
+            NEW.score_overall + NEW.score_uniformity + NEW.score_clean_cup + 
+            NEW.score_sweetness
+        ),
+        final_score = (
+            (NEW.score_fragrance + NEW.score_flavor + NEW.score_aftertaste + 
+             NEW.score_acidity + NEW.score_body + NEW.score_balance + 
+             NEW.score_overall + NEW.score_uniformity + NEW.score_clean_cup + 
+             NEW.score_sweetness) - COALESCE(NEW.defect_score_subtract, 0)
+        )
+    WHERE id = NEW.id;
+END;
+
+
+
 `;

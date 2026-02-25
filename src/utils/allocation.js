@@ -1,62 +1,144 @@
-export const allocateBags = (reqs, inventory) => {
+export function generateUuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
+ * SMART ALLOCATION ENGINE (Pro Level)
+ * Logic: Greedy Selection with Multi-Variable Scoring
+ */
+
+const DEFAULT_BAG_WEIGHT_KG = 69.0;
+const FLAVOR_NOTE_BONUS_SCORE = 5;
+
+function compareDates(dateA, dateB) {
+  const d1 = new Date(dateA);
+  const d2 = new Date(dateB);
+  return d1.getTime() - d2.getTime();
+}
+
+export function allocateBags(reqs, inventory) {
   const { minScore, requiredWeight } = reqs;
-  const BAG_WEIGHT = 69.0;
-  const bagsNeeded = Math.ceil(requiredWeight / BAG_WEIGHT);
+  const targetWeight = parseFloat(requiredWeight);
+  
+  // 1. Filter and Initial Sort (Quality First)
+  let pool = inventory.filter(b => {
+    // Always apply status and minScore filter
+    if (b.status !== 'Available' || b.quality_score < minScore) {
+      return false;
+    }
 
-  // 1. Filter: Only Available bags that meet the quality threshold
-  const candidates = inventory.filter(b => 
-    b.status === 'Available' && b.avgScore >= minScore
-  );
+    // Variety filter
+    if (reqs.variety && reqs.variety !== '' && b.variety !== reqs.variety) {
+      return false;
+    }
 
-  if (candidates.length < bagsNeeded) {
-    console.warn("Allocation failed: Not enough matching bags found.");
-    return []; 
-  }
-
-  // Helper to summarize a selection
-  const createOption = (label, sortedBags) => {
-    const subset = sortedBags.slice(0, bagsNeeded);
-    return {
-      strategy: label,
-      bags: subset,
-      summary: {
-        avgCost: subset.reduce((a, b) => a + b.cost_per_kg, 0) / bagsNeeded,
-        avgQual: subset.reduce((a, b) => a + b.avgScore, 0) / bagsNeeded,
-        // Calculate total weight to confirm fulfillment
-        totalWeight: subset.length * BAG_WEIGHT 
+    // Flavor Note filter (case-insensitive fuzzy search)
+    if (reqs.flavorNote && reqs.flavorNote !== '') {
+      const bagFlavorNotes = b.primary_flavor_note ? b.primary_flavor_note.toLowerCase() : '';
+      const searchFlavorNote = reqs.flavorNote.toLowerCase();
+      if (!bagFlavorNotes.includes(searchFlavorNote)) {
+        return false;
       }
-    };
-  };
+    }
 
-  // Define the 4 Strategies
-  const options = [
-    // 1. BEST QUALITY: Highest SCAA scores first
-    createOption("Premium Selection (Quality)", 
-      [...candidates].sort((a, b) => b.avgScore - a.avgScore)
-    ),
+    return true;
+  });
 
-    // 2. LOWEST COST: Maximizing profit margins
-    createOption("Economic Selection (Lowest Cost)", 
-      [...candidates].sort((a, b) => a.cost_per_kg - b.cost_per_kg)
-    ),
+  if (pool.length === 0) return [];
 
-    // 3. FIFO: Oldest harvest/inventory first to prevent aging
-    createOption("Inventory Health (FIFO)", 
-      [...candidates].sort((a, b) => {
-        // Sorts by ID or harvest_date string if available
-        return a.id.localeCompare(b.id); 
-      })
-    ),
+  const results = [];
 
-    // 4. LOWEST OP-COST: Picking bags from top levels (10 down to 1)
-    createOption("Operational Efficiency (Fast Pick)", 
-      [...candidates].sort((a, b) => {
-        const levelA = parseInt(a.stock_code?.split('-')[1]) || 1;
-        const levelB = parseInt(b.stock_code?.split('-')[1]) || 1;
-        return levelB - levelA; // Higher level (10) comes first
-      })
-    )
+  const searchFlavorNote = reqs.flavorNote ? reqs.flavorNote.toLowerCase() : '';
+
+  // We generate 3 distinct strategy variations for the user to choose from
+  const strategies = [
+    {
+      name: 'Best Quality',
+      sortFn: (a, b) => {
+        let scoreA = a.quality_score;
+        let scoreB = b.quality_score;
+
+        // Apply Flavor Note Reward
+        if (searchFlavorNote && a.primary_flavor_note && a.primary_flavor_note.toLowerCase().includes(searchFlavorNote)) {
+          scoreA += FLAVOR_NOTE_BONUS_SCORE; // Example bonus
+        }
+        if (searchFlavorNote && b.primary_flavor_note && b.primary_flavor_note.toLowerCase().includes(searchFlavorNote)) {
+          scoreB += FLAVOR_NOTE_BONUS_SCORE; // Example bonus
+        }
+
+        // Prioritize quality_score DESC (with bonus)
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        // Tie-break with storage_level ASC
+        return a.storage_level - b.storage_level;
+      }
+    },
+    {
+      name: 'Lowest Cost',
+      sortFn: (a, b) => {
+        // Prioritize base_farm_cost_per_kg ASC
+        if (a.base_farm_cost_per_kg !== b.base_farm_cost_per_kg) {
+          return a.base_farm_cost_per_kg - b.base_farm_cost_per_kg;
+        }
+        // Tie-break with storage_level ASC
+        return a.storage_level - b.storage_level;
+      }
+    },
+    {
+      name: 'FIFO (Freshness)',
+      sortFn: (a, b) => {
+        // Prioritize harvest_date ASC (earliest first)
+        const dateComparison = compareDates(a.harvest_date, b.harvest_date);
+        if (dateComparison !== 0) {
+          return dateComparison;
+        }
+        // Tie-break with storage_level ASC
+        return a.storage_level - b.storage_level;
+      }
+    }
   ];
 
-  return options;
-};
+  strategies.forEach(strat => {
+    // Rank pool based on strategy's sort function
+    const rankedPool = [...pool].sort(strat.sortFn);
+
+    let selectedBags = [];
+    let currentWeight = 0;
+
+    for (const bag of rankedPool) {
+      if (currentWeight >= targetWeight) break;
+      selectedBags.push(bag);
+      currentWeight += bag.weight_kg;
+    }
+
+    if (currentWeight >= targetWeight) {
+      results.push(formatOption(selectedBags, strat.name));
+    }
+  });
+
+  return results.sort((a, b) => b.summary.score - a.summary.score);
+}
+
+function formatOption(bags, strategyName) {
+  const totalWeight = bags.reduce((sum, b) => sum + b.weight_kg, 0);
+  const avgQual = bags.reduce((sum, b) => sum + b.quality_score, 0) / bags.length;
+  const avgCost = bags.reduce((sum, b) => sum + b.base_farm_cost_per_kg, 0) / bags.length;
+  const avgLevel = bags.reduce((sum, b) => sum + b.storage_level, 0) / bags.length;
+
+  return {
+    strategyName,
+    bags,
+    summary: {
+      totalWeight,
+      avgQual,
+      avgCost,
+      // Efficiency is normalized: Level 10 = 1.0, Level 1 = 0.1
+      totalPriority: avgLevel / 10, 
+      score: (avgQual * 10) + (avgLevel * 5) - (avgCost * 2)
+    }
+  };
+}
