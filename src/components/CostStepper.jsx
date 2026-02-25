@@ -8,7 +8,7 @@ const steps = [
   { id: 'Final Destination', name: 'Client', description: 'Delivered to Roastery', costKey: null },
 ];
 
-const CostStepper = ({ currentStage, costs }) => {
+const CostStepper = React.memo(({ currentStage, costs }) => {
   const currentIndex = steps.findIndex(s => s.id === currentStage);
 
   return (
@@ -84,6 +84,6 @@ const CostStepper = ({ currentStage, costs }) => {
       </div>
     </div>
   );
-};
+});
 
 export default CostStepper;

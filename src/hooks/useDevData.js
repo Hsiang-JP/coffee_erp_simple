@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction } from '../db/dbSetup';
-import { runSimulation } from '../utils/simulation';
 import { syncAllDatabaseLocations } from '../utils/geoAgent';
 
 export function useDevData() {
@@ -88,16 +87,15 @@ export function useDevData() {
   };
 
   const handleClean = async () => {
-    if (!confirm("TOTAL WIPE: This will empty ALL data tables. Proceed?")) return;
+    if (!confirm("SOFT CLEAN: This will clear all transactional data (Lots, Bags, Contracts) but keep Producers and Farms. Proceed?")) return;
     try {
       await wrapInTransaction(async () => {
-        await execute("PRAGMA foreign_keys = OFF;");
-        const tables = ['bag_milestones', 'cupping_sessions', 'cost_ledger', 'bags', 'contracts', 'lots', 'farms', 'producers', 'clients', 'locations'];
+        // Soft clean: clear transactional data only
+        const tables = ['bag_milestones', 'cupping_sessions', 'cost_ledger', 'bags', 'contracts', 'lots'];
         for (const table of tables) { await execute(`DELETE FROM ${table}`); }
         try { await execute("DELETE FROM sqlite_sequence"); } catch (e) {}
-        await execute("PRAGMA foreign_keys = ON;");
       });
-      alert("System clean.");
+      alert("Transactional data cleared.");
       triggerRefresh();
     } catch (err) { alert("Clean failed: " + err.message); }
   };
@@ -113,11 +111,6 @@ export function useDevData() {
     }
   };
 
-  const handleRunSimulation = async () => {
-    await runSimulation();
-    triggerRefresh();
-  };
-
   return {
     data,
     syncStatus,
@@ -128,7 +121,6 @@ export function useDevData() {
     handleExport,
     handleImport,
     handleClean,
-    handleDelete,
-    handleRunSimulation
+    handleDelete
   };
 }

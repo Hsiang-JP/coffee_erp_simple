@@ -18,7 +18,7 @@ const QCReports = () => {
     return 'bg-stone-100 text-stone-600 border-stone-200';
   };
 
-  const AttributeBar = ({ label, value, colorClass = "bg-stone-300" }) => (
+  const AttributeBar = React.memo(({ label, value, colorClass = "bg-stone-300" }) => (
     <div className="group">
       <div className="flex justify-between items-end mb-1">
         <span className="text-[10px] font-bold uppercase tracking-tighter text-stone-400 group-hover:text-stone-600 transition-colors">
@@ -33,7 +33,7 @@ const QCReports = () => {
         />
       </div>
     </div>
-  );
+  ));
 
   return (
     <div className="max-w-6xl mx-auto p-8 bg-[#F9F7F2] min-h-screen font-sans">

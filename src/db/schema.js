@@ -28,21 +28,21 @@ CREATE TABLE IF NOT EXISTS farms (
     name TEXT NOT NULL,
     region TEXT NOT NULL,
     altitude_meters REAL,
-    location TEXT CHECK(location IN ('Quillabamba', 'Santa Teresa', 'Quellouno', 'Other')),
+    location TEXT NOT NULL,
     certification TEXT CHECK(certification IN ('Organic', 'Fair Trade', 'Rainforest Alliance', 'None')),
-    FOREIGN KEY (producer_id) REFERENCES producers(id)
+    FOREIGN KEY (producer_id) REFERENCES producers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS lots (
     id TEXT PRIMARY KEY,
     public_id TEXT,
     farm_id TEXT,
-    variety TEXT CHECK(variety IN ('Typica', 'Caturra', 'Catuai', 'Geisha', 'Other')),
-    process_method TEXT CHECK(process_method IN ('Washed', 'Natural', 'Honey', 'Anaerobic', 'Other')),
+    variety TEXT, 
+    process_method TEXT, 
     total_weight_kg REAL,
     harvest_date TEXT,
     base_farm_cost_per_kg REAL,
-    FOREIGN KEY (farm_id) REFERENCES farms(id)
+    FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS cost_ledger (
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS cost_ledger (
     amount_usd REAL NOT NULL,
     date_incurred TEXT,
     notes TEXT,
-    FOREIGN KEY (lot_id) REFERENCES lots(id)
+    FOREIGN KEY (lot_id) REFERENCES lots(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS contracts (
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     required_quality_score REAL NOT NULL,
     required_flavor_profile TEXT,
     status TEXT CHECK(status IN ('Processing', 'Fulfilled')),
-    FOREIGN KEY (client_id) REFERENCES clients(id)
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS bags (
@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS bags (
     stock_code TEXT, 
     status TEXT CHECK(status IN ('Available', 'Allocated', 'Shipped')),
     contract_id TEXT,
-    FOREIGN KEY (lot_id) REFERENCES lots(id),
-    FOREIGN KEY (contract_id) REFERENCES contracts(id)
+    FOREIGN KEY (lot_id) REFERENCES lots(id) ON DELETE CASCADE,
+    FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
 );
 
 -- ==========================================
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS cupping_sessions (
     final_score REAL,
     notes TEXT,
     primary_flavor_note TEXT,
-    FOREIGN KEY (lot_id) REFERENCES lots(id)
+    FOREIGN KEY (lot_id) REFERENCES lots(id) ON DELETE CASCADE
 );
 
 -- ==========================================
@@ -129,8 +129,8 @@ CREATE TABLE IF NOT EXISTS bag_milestones (
     cost_to_import REAL,
     cost_to_client REAL,
     final_sale_price REAL,
-    FOREIGN KEY (bag_id) REFERENCES bags(id),
-    FOREIGN KEY (contract_id) REFERENCES contracts(id)
+    FOREIGN KEY (bag_id) REFERENCES bags(id) ON DELETE CASCADE,
+    FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
 );
 
 -- ==========================================
@@ -155,6 +155,42 @@ SELECT
 FROM bags b
 JOIN lots l ON b.lot_id = l.id
 WHERE b.status = 'Available';
+
+DROP VIEW IF EXISTS vw_contract_journey;
+
+CREATE VIEW vw_contract_journey AS
+SELECT 
+    b.contract_id,
+    SUM(b.weight_kg) as total_weight,
+    
+    -- Base Farm Cost
+    AVG(l.base_farm_cost_per_kg + (SELECT COALESCE(SUM(amount_usd), 0) FROM cost_ledger WHERE lot_id = l.id) / NULLIF(l.total_weight_kg, 0)) as farm_cost,
+    
+    -- Individual stage costs per kg (Changed from SUM to AVG)
+    AVG(COALESCE(bm.cost_to_warehouse, 0)) AS cost_to_warehouse_per_kg,
+    AVG(COALESCE(bm.cost_to_export, 0)) AS cost_to_export_per_kg,
+    AVG(COALESCE(bm.cost_to_import, 0)) AS cost_to_import_per_kg,
+    AVG(COALESCE(bm.cost_to_client, 0)) AS cost_to_client_per_kg,
+
+    -- Total ops cost
+    (AVG(COALESCE(bm.cost_to_warehouse, 0)) + 
+     AVG(COALESCE(bm.cost_to_export, 0)) + 
+     AVG(COALESCE(bm.cost_to_import, 0)) + 
+     AVG(COALESCE(bm.cost_to_client, 0))) as ops_cost,
+    
+    -- Total landed
+    AVG(l.base_farm_cost_per_kg + (SELECT COALESCE(SUM(amount_usd), 0) FROM cost_ledger WHERE lot_id = l.id) / NULLIF(l.total_weight_kg, 0)) + 
+    (AVG(COALESCE(bm.cost_to_warehouse, 0)) + 
+     AVG(COALESCE(bm.cost_to_export, 0)) + 
+     AVG(COALESCE(bm.cost_to_import, 0)) + 
+     AVG(COALESCE(bm.cost_to_client, 0))) as total_landed,
+    
+    -- FIX: Grab the actual stage from one of the contract's milestones, bypassing alphabetical sorting
+    (SELECT current_stage FROM bag_milestones WHERE contract_id = b.contract_id LIMIT 1) as current_stage
+FROM bags b
+JOIN lots l ON b.lot_id = l.id
+JOIN bag_milestones bm ON bm.bag_id = b.id
+GROUP BY b.contract_id;
 
 CREATE TRIGGER IF NOT EXISTS update_final_price_after_milestone_insert
 AFTER INSERT ON bag_milestones
@@ -308,6 +344,5 @@ END;
   ('loc-inkawasi', 'Inkawasi', 'City', -13.326, -73.2040),
   ('loc-santa-teresa', 'Santa Teresa', 'City', -13.1500, -72.7500),
   ('loc-quellouno', 'Quellouno', 'City', -13.2000, -72.6000);
-
 
 `;

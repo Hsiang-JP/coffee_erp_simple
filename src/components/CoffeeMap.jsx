@@ -6,7 +6,7 @@ const STAGE_IDX = {
   'Farm': 0, 'Cora': 1, 'Port-Export': 2, 'Port-Import': 3, 'Final Destination': 4
 };
 
-const CoffeeMap = ({ currentStage = 'Farm', bags = [], contractId = null }) => {
+const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = null }) => {
   // Add default empty arrays to destructuring to prevent 'undefined' errors
   const { 
     farms = [], 
@@ -170,6 +170,6 @@ const CoffeeMap = ({ currentStage = 'Farm', bags = [], contractId = null }) => {
       </div>
     </div>
   );
-};
+});
 
 export default CoffeeMap;

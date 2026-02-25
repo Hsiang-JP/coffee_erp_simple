@@ -1,86 +1,57 @@
 import { useEffect } from 'react';
 import { useStore } from '../store/store';
-import { initDB, execute } from '../db/dbSetup';
-import { buyLotTransaction } from '../db/services/lotService';
 import { advanceContractStage } from '../db/services/contractService';
+import { buyLotTransaction } from '../db/services/lotService';
 
 export function useCoffeeData() {
-  const setCoffees = useStore((state) => state.setCoffees);
-  const setContracts = useStore((state) => state.setContracts);
-  const setCuppingReports = useStore((state) => state.setCuppingReports);
-  const setMilestones = useStore((state) => state.setMilestones);
+  const fetchAll = useStore((state) => state.fetchAll);
   const refreshTrigger = useStore((state) => state.refreshTrigger);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function fetchData() {
-      try {
-        await initDB();
-        
-        // Fetch Bags with details
-        const bags = await execute(`
-          SELECT b.*, l.variety, l.process_method, f.name as farm_name, bm.current_stage 
-          FROM bags b
-          JOIN lots l ON b.lot_id = l.id
-          JOIN farms f ON l.farm_id = f.id
-          LEFT JOIN bag_milestones bm ON b.id = bm.bag_id
-        `);
-        
-        if (isMounted) setCoffees(bags);
-
-        // Fetch Contracts
-        const contracts = await execute(`
-          SELECT c.*, cl.name as client_name 
-          FROM contracts c
-          LEFT JOIN clients cl ON c.client_id = cl.id
-        `);
-
-        if (isMounted) setContracts(contracts);
-
-        // Fetch Cupping Reports
-        const reports = await execute(`
-          SELECT cs.*, l.public_id as lot_code, f.name as farm_name, l.variety, l.process_method,
-                 cs.score_acidity, cs.score_body, cs.score_balance, cs.notes
-          FROM cupping_sessions cs
-          JOIN lots l ON cs.lot_id = l.id
-          JOIN farms f ON l.farm_id = f.id
-        `);
-        
-        if (isMounted) setCuppingReports(reports);
-        
-        // Fetch Milestones
-        const milestones = await execute(`SELECT * FROM bag_milestones`);
-        
-        if (isMounted) setMilestones(milestones);
-
-      } catch (error) {
-        console.error("Data fetch failed:", error);
-      }
-    }
-
-    fetchData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [setCoffees, setContracts, setCuppingReports, setMilestones, refreshTrigger]);
-}
-
-export function useBuyLot() {
-  const triggerRefresh = useStore((state) => state.triggerRefresh);
-  return async (lotData) => {
-    const res = await buyLotTransaction(lotData);
-    triggerRefresh();
-    return res;
-  };
+    fetchAll();
+  }, [fetchAll, refreshTrigger]);
 }
 
 export function useAdvanceStage() {
   const triggerRefresh = useStore((state) => state.triggerRefresh);
+  
   return async (contractId, costValue) => {
+    // 1. Write to wa-sqlite
     const res = await advanceContractStage(contractId, costValue);
+    
+    // 2. Trigger the Zustand refresh loop
     triggerRefresh();
+    
+    // 3. Optional but recommended: Add a tiny artificial delay so the UI 
+    // doesn't instantly snap out of "Processing..." before the DB read finishes.
+    await new Promise(resolve => setTimeout(resolve, 300)); 
+    
     return res;
+  };
+}
+
+/**
+ * Hook to execute a lot purchase and immediately refresh the global store.
+ */
+export function useBuyLot() {
+  const triggerRefresh = useStore((state) => state.triggerRefresh);
+  const fetchAll = useStore((state) => state.fetchAll); 
+
+  return async (lotData) => {
+    try {
+      // 1. Execute the database transaction
+      const result = await buyLotTransaction(lotData);
+      
+      // 2. Wait for the database to finish updating the views
+      await fetchAll(); 
+      
+      // 3. Notify the UI to re-render
+      triggerRefresh();
+      
+      return result;
+    } catch (error) {
+      console.error("Failed to buy lot:", error);
+      throw error; // Re-throw so the UI can catch it and show an alert
+    }
   };
 }

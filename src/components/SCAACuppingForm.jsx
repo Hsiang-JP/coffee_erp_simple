@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/store';
-import { execute } from '../db/dbSetup';
+import { createCuppingSession } from '../db/services/cuppingService';
 import gsap from 'gsap';
 
 // --- Helper Components ---
@@ -31,7 +31,7 @@ const CupGrid = ({ label, field, cups, toggleCup }) => (
   </div>
 );
 
-const SCAACuppingForm = () => {
+const SCAACuppingForm = React.memo(() => {
   const { lots, triggerRefresh } = useStore();
   
   const [formData, setFormData] = useState({
@@ -82,27 +82,17 @@ const SCAACuppingForm = () => {
     e.preventDefault();
     if (!formData.lot_id) return alert("Please select a lot.");
 
-    await execute(`
-      INSERT INTO cupping_sessions (
-        id, public_id, lot_id, cupper_name, cupping_date,
-        score_fragrance, score_flavor, score_aftertaste, score_acidity,
-        score_body, score_balance, score_overall, 
-        uniformity_cups, score_uniformity, 
-        clean_cup_cups, score_clean_cup, 
-        sweetness_cups, score_sweetness,
-        defect_type, defect_cups, defect_score_subtract,
-        total_score, final_score, notes, primary_flavor_note
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      `cup-${Date.now()}`, `QC-${String(Date.now()).slice(-4)}`, formData.lot_id, formData.cupper_name, formData.cupping_date,
-      formData.score_fragrance, formData.score_flavor, formData.score_aftertaste, formData.score_acidity,
-      formData.score_body, formData.score_balance, formData.score_overall,
-      formData.uniformity_cups, scores.uniScore,
-      formData.clean_cup_cups, scores.cleanScore,
-      formData.sweetness_cups, scores.sweetScore,
-      formData.defect_type, formData.defect_cups, scores.defectSub,
-      scores.total, scores.final, formData.notes, formData.primary_flavor_note
-    ]);
+    await createCuppingSession({
+      ...formData,
+      id: `cup-${Date.now()}`,
+      public_id: `QC-${String(Date.now()).slice(-4)}`,
+      score_uniformity: scores.uniScore,
+      score_clean_cup: scores.cleanScore,
+      score_sweetness: scores.sweetScore,
+      defect_score_subtract: scores.defectSub,
+      total_score: scores.total,
+      final_score: scores.final
+    });
 
     alert("Successful: Scoresheet Synchronized.");
     triggerRefresh();
@@ -177,6 +167,6 @@ const SCAACuppingForm = () => {
       </button>
     </form>
   );
-};
+});
 
 export default SCAACuppingForm;

@@ -6,14 +6,14 @@ import CoffeeMap from '../components/CoffeeMap.jsx';
 import CostStepper from '../components/CostStepper.jsx';
 
 const CoffeeJourney = () => {
-  const { coffees, contracts, milestones, lots, ledger } = useStore();
+  const { coffees, contracts, lots, contractMetrics } = useStore();
   const [selectedContractId, setSelectedContractId] = useState('');
   const [costInput, setCostInput] = useState('');
   const [isAdvancing, setIsAdvancing] = useState(false);
   const advanceStage = useAdvanceStage();
 
-  // 1. Enriched Logic: Join Variety & Calculate Per-KG Costs
-  const { contractBags, metrics, currentStage, nextStage } = useMemo(() => {
+  // 1. Simplified Logic: Use pre-calculated metrics from the store
+  const { contractBags, metrics, currentStage, nextStage, varieties } = useMemo(() => {
     // Filter bags for this contract and attach variety from the lots table
     const bags = coffees
       .filter(b => b.contract_id === selectedContractId)
@@ -22,55 +22,38 @@ const CoffeeJourney = () => {
         variety: lots.find(l => l.id === b.lot_id)?.variety || 'Unknown'
       }));
 
-    const relevantMilestones = milestones.filter(m => bags.some(b => b.id === m.bag_id));
-    
-    if (relevantMilestones.length === 0 || bags.length === 0) {
-      return { contractBags: bags, metrics: null, currentStage: 'Farm', nextStage: 'Cora' };
+    const contractMetric = contractMetrics.find(m => m.contract_id === selectedContractId);
+    const contractVarieties = [...new Set(bags.map(b => b.variety))];
+
+    if (!contractMetric || bags.length === 0) {
+      return { 
+        contractBags: bags, 
+        metrics: null, 
+        currentStage: 'Farm', 
+        nextStage: 'Cora',
+        varieties: contractVarieties
+      };
     }
-
-    // Weight calculation for lump-sum division
-    const totalContractWeight = bags.reduce((sum, b) => sum + (parseFloat(b.weight_kg) || 69.0), 0) || 1;
-    const count = relevantMilestones.length;
-    const getLumpSum = (key) => relevantMilestones.reduce((sum, m) => sum + (parseFloat(m[key]) || 0), 0) / count;
-
-    // Calculate Farm + Ledger (Already Per-KG)
-    let totalFarmCost = 0;
-    let totalLedgerOverhead = 0;
-    
-    bags.forEach(b => {
-      const lot = lots.find(l => l.id === b.lot_id);
-      if (lot) {
-        totalFarmCost += parseFloat(lot.base_farm_cost_per_kg) || 0;
-        const lotLedger = ledger.filter(led => led.lot_id === lot.id);
-        const ledgerSum = lotLedger.reduce((sum, item) => sum + parseFloat(item.amount_usd || 0), 0);
-        totalLedgerOverhead += (ledgerSum / (parseFloat(lot.total_weight_kg) || 1));
-      }
-    });
-
-    const avgFarmPlusLedger = (totalFarmCost + totalLedgerOverhead) / bags.length;
-
-    const logisticsCosts = {
-      cost_to_warehouse: getLumpSum('cost_to_warehouse') / totalContractWeight,
-      cost_to_export: getLumpSum('cost_to_export') / totalContractWeight,
-      cost_to_import: getLumpSum('cost_to_import') / totalContractWeight,
-      cost_to_client: getLumpSum('cost_to_client') / totalContractWeight
-    };
-
-    const totalLogisticsPerKg = Object.values(logisticsCosts).reduce((sum, val) => sum + val, 0);
 
     return {
       contractBags: bags,
       metrics: {
-        total_landed: avgFarmPlusLedger + totalLogisticsPerKg,
-        farm_cost: avgFarmPlusLedger,
-        ops_cost: totalLogisticsPerKg,
-        raw_data: logisticsCosts,
-        total_weight: totalContractWeight // ADDED: Passing weight to the UI
+        total_landed: contractMetric.total_landed,
+        farm_cost: contractMetric.farm_cost,
+        ops_cost: contractMetric.ops_cost,
+        total_weight: contractMetric.total_weight,
+        raw_data: {
+          cost_to_warehouse: contractMetric.cost_to_warehouse_per_kg,
+          cost_to_export: contractMetric.cost_to_export_per_kg,
+          cost_to_import: contractMetric.cost_to_import_per_kg,
+          cost_to_client: contractMetric.cost_to_client_per_kg,
+        }
       },
-      currentStage: relevantMilestones[0].current_stage,
-      nextStage: getNextStage(relevantMilestones[0].current_stage)
+      currentStage: contractMetric.current_stage,
+      nextStage: getNextStage(contractMetric.current_stage),
+      varieties: contractVarieties
     };
-  }, [coffees, milestones, lots, ledger, selectedContractId]);
+  }, [coffees, lots, selectedContractId, contractMetrics]);
 
   const handleAdvance = async () => {
     if (!selectedContractId || !nextStage) return;
@@ -78,10 +61,14 @@ const CoffeeJourney = () => {
     try {
       await advanceStage(selectedContractId, parseFloat(costInput) || 0);
       setCostInput('');
-    } catch (e) { alert(e.message); } 
-    finally { setIsAdvancing(false); }
+      // If triggerRefresh() is called in the hook, the useMemo will automatically recalculate!
+    } catch (e) { 
+      console.error("Advance Error:", e); // Check the DevTools Console!
+      alert("Failed: " + e.message); 
+    } finally { 
+      setIsAdvancing(false); 
+    }
   };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-stone-50 min-h-screen p-6">
       {/* Sidebar: Control Panel */}
@@ -132,7 +119,7 @@ const CoffeeJourney = () => {
                   <div className="space-y-2 pt-1">
                     <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest block">Varieties</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {[...new Set(contractBags.map(b => b.variety))].map(v => (
+                      {varieties.map(v => (
                         <span key={v} className="bg-white px-2.5 py-1 rounded-lg text-[10px] font-bold text-zinc-600 border border-stone-200 shadow-sm">
                           {v}
                         </span>
@@ -174,7 +161,7 @@ const CoffeeJourney = () => {
             </div>
             <div className="flex justify-between mt-4 pt-4 border-t border-zinc-800 text-[10px] uppercase font-bold text-stone-500">
               <span>Farm + Ledger: ${(metrics?.farm_cost || 0).toFixed(2)}</span>
-              <span>Ops: ${(metrics?.logistics || 0).toFixed(2)}</span>
+              <span>Ops: ${(metrics?.ops_cost || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

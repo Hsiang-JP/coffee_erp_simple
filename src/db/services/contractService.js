@@ -1,68 +1,64 @@
-import { execute, getNextStage, getCostFieldForTransition, wrapInTransaction } from '../dbSetup';
+import { execute, wrapInTransaction } from '../dbSetup';
 
-/**
- * Advances the stage of all bags associated with a contract.
- * Updates the relevant cost field and the current stage.
- * Relies on the database trigger 'update_final_price_after_milestone' for price calculations.
- * 
- * @param {string} contractId - ID of the contract.
- * @param {number} costValue - Cost incurred during this transition.
- * @returns {Promise<Object>} - Object containing success status and the next stage.
- */
-export async function advanceContractStage(contractId, costValue) {
-  return wrapInTransaction(async () => {
-    // 1. Determine the current stage of the bags in this contract
-    const bagRes = await execute(`
-      SELECT bm.current_stage 
-      FROM bag_milestones bm
-      JOIN bags b ON bm.bag_id = b.id
-      WHERE b.contract_id = ?
-      LIMIT 1
-    `, [contractId]);
+// Helper to determine the strictly enforced stage sequence
+export function getNextStage(currentStage) {
+  const stages = ['Farm', 'Cora', 'Port-Export', 'Port-Import', 'Final Destination'];
+  const idx = stages.indexOf(currentStage);
+  return idx >= 0 && idx < stages.length - 1 ? stages[idx + 1] : null;
+}
+
+export async function advanceContractStage(contractId, totalInputCost) {
+  return await wrapInTransaction(async () => {
+    // 1. Get the ACTUAL total weight of all bags in this contract
+    const bagsQuery = await execute(
+      `SELECT SUM(weight_kg) as total_weight FROM bags WHERE contract_id = ?`, 
+      [contractId]
+    );
     
-    if (bagRes.length === 0) {
-      throw new Error("No milestones found for this contract");
-    }
+    // Fallback to 1 to prevent dividing by zero
+    const totalWeight = bagsQuery[0]?.total_weight || 1; 
 
-    const currentStage = bagRes[0].current_stage;
+    // 2. Get the current stage from the milestones
+    const stageQuery = await execute(
+      `SELECT current_stage FROM bag_milestones WHERE contract_id = ? LIMIT 1`, 
+      [contractId]
+    );
+
+    if (!stageQuery.length) throw new Error("Contract milestones not found.");
+    const currentStage = stageQuery[0].current_stage;
+
+    // 3. 🧮 THE MATH FIX: Total USD / Total KG
+    // Example: $100 input / 276 kg = $0.3623 per kg
+    const costPerKg = totalInputCost / totalWeight;
+
+    // 4. Determine next stage
     const nextStage = getNextStage(currentStage);
+    if (!nextStage) throw new Error("Contract is already at Final Destination");
 
-    if (!nextStage) {
-      throw new Error("Already at final destination");
-    }
+    // 5. Map the stage to the correct cost column
+    const columnMap = {
+      'Farm': 'cost_to_warehouse',
+      'Cora': 'cost_to_export',
+      'Port-Export': 'cost_to_import',
+      'Port-Import': 'cost_to_client'
+    };
+    const col = columnMap[currentStage];
 
-    const costField = getCostFieldForTransition(currentStage); 
-
-    // 2. Update milestones with the new cost and stage
-    // This update will trigger 'update_final_price_after_milestone' in the DB
-    // which automatically recalculates final_sale_price.
+    // 6. Update the Database
     await execute(`
       UPDATE bag_milestones 
-      SET ${costField} = ?, current_stage = ? 
-      WHERE bag_id IN (SELECT id FROM bags WHERE contract_id = ?)
-    `, [Number(costValue) || 0, nextStage, contractId]);
-
-    // 3. Update bag location and status
-    // Aligning with new schema column names: 'location' and 'contract_id'
-    // We update the location in the bags table to match the new stage.
-    // If the next stage is 'Port-Export', we also update the status to 'Shipped'.
+      SET current_stage = ?, 
+          ${col} = COALESCE(${col}, 0) + ? 
+      WHERE contract_id = ?`, 
+      [nextStage, costPerKg, contractId]
+    );
     
-    let statusUpdate = '';
-    if (nextStage === 'Port-Export') {
-      statusUpdate = ", status = 'Shipped'";
-    }
+    // Keep the bags table location synced with the milestone stage
+    await execute(
+      `UPDATE bags SET location = ? WHERE contract_id = ?`, 
+      [nextStage, contractId]
+    );
 
-    await execute(`
-      UPDATE bags 
-      SET location = ? ${statusUpdate}
-      WHERE contract_id = ?
-    `, [nextStage, contractId]);
-
-    // 4. Update contract status if complete
-    if (nextStage === 'Final Destination') {
-      await execute(`UPDATE contracts SET status = 'Fulfilled' WHERE id = ?`, [contractId]);
-    }
-
-    return { success: true, nextStage };
+    return { success: true };
   });
 }

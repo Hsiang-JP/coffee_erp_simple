@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store/store';
-import { wrapInTransaction, execute } from '../db/dbSetup';
-import { generateStockCodes } from '../utils/warehouseUtils';
 import { useBuyLot } from '../hooks/useCoffeeData';
 import SCAACuppingForm from '../components/SCAACuppingForm';
+import { createProducer } from '../db/services/producerService';
+import { createFarm } from '../db/services/farmService';
+import { createClient, createCostLedgerEntry } from '../db/services/inventoryService';
 
 // --- Form Components ---
 const NewProducerForm = () => {
@@ -14,7 +15,7 @@ const NewProducerForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name) return;
-    await execute('INSERT INTO producers (id, name, relationship) VALUES (?, ?, ?)', [`prod-${Date.now()}`, name, relationship]);
+    await createProducer({ name, relationship });
     alert("Successful: Producer registered.");
     setName('');
     setRelationship('Other');
@@ -42,79 +43,189 @@ const NewProducerForm = () => {
   );
 };
 
+const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Filter existing options by search text
+  const filtered = options.filter(opt => 
+    opt.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Check if what the user typed already exists
+  const exactMatch = options.find(opt => 
+    opt.name.toLowerCase() === search.toLowerCase()
+  );
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input 
+        type="text"
+        placeholder={placeholder}
+        // Show the name of the selected ID, or the current search text if typing
+        value={isOpen ? search : (options.find(o => o.id === value)?.name || search || value)}
+        onFocus={() => { setIsOpen(true); setSearch(''); }}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 outline-none focus:ring-2 focus:ring-emerald-500"
+      />
+
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-40 overflow-y-auto">
+          {filtered.map(opt => (
+            <div 
+              key={opt.id}
+              className="p-2 hover:bg-emerald-50 cursor-pointer text-sm"
+              onClick={() => { onChange(opt.id); setIsOpen(false); setSearch(opt.name); }}
+            >
+              {opt.name}
+            </div>
+          ))}
+
+          {!exactMatch && search.length > 0 && (
+            <div 
+              className="p-2 bg-emerald-50 text-emerald-700 cursor-pointer text-sm font-bold border-t border-emerald-100"
+              onClick={() => { onAdd(search); setIsOpen(false); }}
+            >
+              + Add "{search}" as a new Region
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const NewFarmForm = () => {
-  const { producers } = useStore();
+  const { producers, farms, triggerRefresh, fetchAll } = useStore();
   const [producerId, setProducerId] = useState('');
   const [name, setName] = useState('');
-  const [region, setRegion] = useState('Other');
+  const [region, setRegion] = useState('');
   const [altitude, setAltitude] = useState('');
-  const [location, setLocation] = useState('Other');
+  const [location, setLocation] = useState('');
   const [certification, setCertification] = useState('None');
-  const triggerRefresh = useStore((state) => state.triggerRefresh);
+
+  // 1. Dynamic Lookups: Extract unique existing data for the Comboboxes
+  const regionOptions = useMemo(() => {
+    const defaults = ['Cusco', 'Cajamarca', 'Junin'];
+    const current = farms.map(f => f.region);
+    return [...new Set([...defaults, ...current])].filter(Boolean).map(r => ({ id: r, name: r }));
+  }, [farms]);
+
+  const locationOptions = useMemo(() => {
+    const defaults = ['Quillabamba', 'Santa Teresa', 'Quellouno'];
+    const current = farms.map(f => f.location);
+    return [...new Set([...defaults, ...current])].filter(Boolean).map(l => ({ id: l, name: l }));
+  }, [farms]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!producerId || !name) return;
-    await execute(
-      'INSERT INTO farms (id, producer_id, name, region, altitude_meters, location, certification) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [`farm-${Date.now()}`, producerId, name, region, parseFloat(altitude) || null, location, certification]
-    );
-    alert("Successful: Farm registered.");
-    setProducerId('');
-    setName('');
-    setRegion('Other');
-    setAltitude('');
-    setLocation('Other');
-    setCertification('None');
-    triggerRefresh();
+    if (!producerId || !name || !region || !location) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    try {
+      await createFarm({ 
+        producerId, 
+        name, 
+        region, 
+        altitude: parseFloat(altitude) || 0, 
+        location, 
+        certification 
+      });
+      
+      alert(`Successful: ${name} registered.`);
+      
+      // Reset Form
+      setProducerId('');
+      setName('');
+      setRegion('');
+      setAltitude('');
+      setLocation('');
+      setCertification('None');
+      
+      // 2. Sync global store and trigger re-render
+      await fetchAll(); 
+      triggerRefresh();
+    } catch (err) {
+      alert("Failed to register farm: " + err.message);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-4">
-      <h3 className="text-lg font-semibold">New Farm</h3>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Producer</label>
-        <select value={producerId} onChange={(e) => setProducerId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="">Select Producer</option>
-          {producers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+    <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-stone-100 max-w-2xl space-y-6">
+      <div className="border-b border-stone-100 pb-4">
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Farm Registration</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Origin Traceability Module</p>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+
+      <div className="grid grid-cols-1 gap-6">
+        {/* Producer Selection */}
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Owner / Producer</label>
+          <select 
+            value={producerId} 
+            onChange={(e) => setProducerId(e.target.value)} 
+            className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800"
+          >
+            <option value="">Select Producer</option>
+            {producers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        {/* Name & Altitude */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Farm Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Altitude (MASL)</label>
+            <input type="number" value={altitude} onChange={(e) => setAltitude(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
+          </div>
+        </div>
+
+        {/* Searchable Region & Location */}
+        <div className="grid grid-cols-2 gap-4">
+          <Combobox 
+            label="Region"
+            placeholder="Search or add region..."
+            options={regionOptions}
+            value={region}
+            onChange={setRegion}
+            onAdd={setRegion}
+          />
+          <Combobox 
+            label="Location / Town"
+            placeholder="Search or add town..."
+            options={locationOptions}
+            value={location}
+            onChange={setLocation}
+            onAdd={setLocation}
+          />
+        </div>
+
+        {/* Strict Certification Selection */}
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Certification</label>
+          <select 
+            value={certification} 
+            onChange={(e) => setCertification(e.target.value)} 
+            className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold"
+          >
+            <option value="None">None</option>
+            <option value="Organic">Organic</option>
+            <option value="Fair Trade">Fair Trade</option>
+            <option value="Rainforest Alliance">Rainforest Alliance</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Region</label>
-        <select value={region} onChange={(e) => setRegion(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="Cusco">Cusco</option>
-          <option value="Cajamarca">Cajamarca</option>
-          <option value="Junin">Junin</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Altitude (meters)</label>
-        <input type="number" value={altitude} onChange={(e) => setAltitude(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Location</label>
-        <select value={location} onChange={(e) => setLocation(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="Quillabamba">Quillabamba</option>
-          <option value="Santa Teresa">Santa Teresa</option>
-          <option value="Quellouno">Quellouno</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Certification</label>
-        <select value={certification} onChange={(e) => setCertification(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-          <option value="Organic">Organic</option>
-          <option value="Fair Trade">Fair Trade</option>
-          <option value="Rainforest Alliance">Rainforest Alliance</option>
-          <option value="None">None</option>
-        </select>
-      </div>
-      <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-md">Add Farm</button>
+
+      <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] hover:bg-black transition-all shadow-xl shadow-stone-200">
+        Register Farm to Database
+      </button>
     </form>
   );
 };
@@ -248,10 +359,7 @@ const CostLedgerForm = () => {
     if (!lotId || !amountUsd) return;
 
     try {
-      await execute(
-        'INSERT INTO cost_ledger (id, lot_id, cost_type, amount_usd, date_incurred) VALUES (?, ?, ?, ?, ?)',
-        [`cl-${Date.now()}`, lotId, costType, parseFloat(amountUsd), dateIncurred]
-      );
+      await createCostLedgerEntry({ lotId, costType, amountUsd, dateIncurred });
       alert("Successful: Cost added to ledger.");
       
       // Reset form
@@ -325,10 +433,7 @@ const ClientForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name) return;
-    await execute(
-      'INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)',
-      [`cli-${Date.now()}`, name, relationship, country, port, city]
-    );
+    await createClient({ name, relationship, country, port, city });
     alert("Successful: Client registered.");
     setName('');
     setRelationship('Other');
@@ -417,7 +522,7 @@ const DataEntry = () => {
   );
 };
 
-const TabButton = ({ name, activeTab, setActiveTab, children }) => {
+const TabButton = React.memo(({ name, activeTab, setActiveTab, children }) => {
   const isActive = name === activeTab;
   return (
     <button
@@ -429,6 +534,7 @@ const TabButton = ({ name, activeTab, setActiveTab, children }) => {
       {children}
     </button>
   );
-};
+});
+
 
 export default DataEntry;

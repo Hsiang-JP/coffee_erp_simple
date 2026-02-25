@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { execute } from '../db/dbSetup';
+import { useDebounce } from './useDebounce';
+import { getCuppingFilterOptions, getFilteredCuppingReports } from '../db/services/cuppingService';
 
 export const useCuppingFilters = () => {
   const [filters, setFilters] = useState({
@@ -7,21 +8,15 @@ export const useCuppingFilters = () => {
     cupperName: '',
     lotPublicId: ''
   });
+  const debouncedFilters = useDebounce(filters, 500);
   const [rawData, setRawData] = useState([]);
   const [options, setOptions] = useState({ farms: [], cuppers: [], lots: [] });
 
   // 1. Fetch Filter Options on Mount
   useEffect(() => {
     const loadOptions = async () => {
-      const farms = await execute("SELECT DISTINCT name FROM farms ORDER BY name ASC");
-      const cuppers = await execute("SELECT DISTINCT cupper_name FROM cupping_sessions ORDER BY cupper_name ASC");
-      const lots = await execute("SELECT DISTINCT public_id FROM lots ORDER BY public_id ASC");
-      
-      setOptions({
-        farms: farms.map(f => f.name),
-        cuppers: cuppers.map(c => c.cupper_name),
-        lots: lots.map(l => l.public_id)
-      });
+      const data = await getCuppingFilterOptions();
+      setOptions(data);
     };
     loadOptions();
   }, []);
@@ -29,42 +24,12 @@ export const useCuppingFilters = () => {
   // 2. Main Data Fetching with SQL Logic (Agent 2 Directive)
   useEffect(() => {
     const fetchData = async () => {
-      // Use the View to get Lot, Farm, and Session data in one JOINed result
-      let query = `
-        SELECT 
-          cs.*, 
-          l.public_id as lot_code, 
-          f.name as farm_name,
-          l.variety,
-          l.process_method
-        FROM cupping_sessions cs
-        JOIN lots l ON cs.lot_id = l.id
-        JOIN farms f ON l.farm_id = f.id
-        WHERE 1=1
-      `;
-      const params = [];
-
-      if (filters.farmName) {
-        query += ` AND f.name = ?`;
-        params.push(filters.farmName);
-      }
-      if (filters.cupperName) {
-        query += ` AND cs.cupper_name = ?`;
-        params.push(filters.cupperName);
-      }
-      if (filters.lotPublicId) {
-        query += ` AND l.public_id = ?`;
-        params.push(filters.lotPublicId);
-      }
-
-      query += ` ORDER BY cs.cupping_date DESC`;
-
-      const data = await execute(query, params);
+      const data = await getFilteredCuppingReports(debouncedFilters);
       setRawData(data);
     };
 
     fetchData();
-  }, [filters]);
+  }, [debouncedFilters]);
 
   // 3. Data Sanitization (Agent 3 Directive)
   const results = useMemo(() => {

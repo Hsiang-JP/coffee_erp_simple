@@ -43,25 +43,37 @@ export async function buyLotTransaction(lotData) {
     const lastCode = lastBag.length > 0 ? lastBag[0].stock_code : null;
     const newCodes = generateStockCodes(lastCode, numBags);
 
-    // 3. Create Bags and initial Milestones
+    // 3. Create Bags and initial Milestones in batches
+    const bagValues = [];
+    const bagPlaceholders = [];
+    const msValues = [];
+    const msPlaceholders = [];
+
     for (let i = 0; i < numBags; i++) {
       const bagId = `bag-${lotId}-${i}`;
       const bagPublicId = `B-${lotPublicId}-${i + 1}`;
       const stockCode = newCodes[i];
       const currentBagWeight = (i === numBags - 1 && remainder > 0) ? remainder : BAG_SIZE;
 
-      // Use 'location' instead of 'warehouse_location' as per new schema
+      bagPlaceholders.push('(?, ?, ?, ?, ?, ?, ?)');
+      bagValues.push(bagId, bagPublicId, lotId, currentBagWeight, stockCode, 'Cora', 'Available');
+
+      msPlaceholders.push('(?, ?, ?)');
+      msValues.push(`ms-${bagId}`, bagId, 'Farm');
+    }
+
+    if (numBags > 0) {
+      // Use location instead of warehouse_location as per new schema
       await execute(`
-        INSERT INTO bags (id, public_id, lot_id, weight_kg, status, stock_code, location)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [bagId, bagPublicId, lotId, currentBagWeight, 'Available', stockCode, 'Cora']);
+        INSERT INTO bags (id, public_id, lot_id, weight_kg, stock_code, location, status)
+        VALUES ${bagPlaceholders.join(', ')}
+      `, bagValues);
 
       // Initial milestone at 'Farm' stage.
-      // The database trigger 'update_final_price_after_milestone' will handle price calculation on insert.
       await execute(`
         INSERT INTO bag_milestones (id, bag_id, current_stage)
-        VALUES (?, ?, 'Farm')
-      `, [`ms-${bagId}`, bagId]);
+        VALUES ${msPlaceholders.join(', ')}
+      `, msValues);
     }
 
     return { success: true, lotPublicId, numBags };

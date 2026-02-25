@@ -15,8 +15,7 @@ const DataManagement = () => {
     handleExport,
     handleImport,
     handleClean,
-    handleDelete,
-    handleRunSimulation
+    handleDelete
   } = useDevData();
 
   const tableConfig = {
@@ -154,10 +153,6 @@ const DataManagement = () => {
               {isSyncing ? 'Syncing...' : 'Sync Geodata'}
             </button>
 
-            <button onClick={handleRunSimulation} className="px-4 py-2 text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-all text-[9px] font-black uppercase tracking-widest">
-              Simulate
-            </button>
-            
             <button onClick={handleClean} className="px-4 py-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-all text-[9px] font-black uppercase tracking-widest">
               Clean
             </button>

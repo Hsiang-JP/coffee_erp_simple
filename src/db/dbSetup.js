@@ -9,7 +9,7 @@ let sqlite3 = null;
 let db = null;
 let dbInitPromise = null;
 
-const DB_NAME = 'green_coffee_erp_v15'; 
+const DB_NAME = 'green_coffee_erp_v16'; 
 
 export const STAGE_ORDER = ['Farm', 'Cora', 'Port-Export', 'Port-Import', 'Final Destination'];
 
@@ -34,9 +34,22 @@ export function getCostFieldForTransition(currentStage) {
  */
 let queryQueue = Promise.resolve();
 
+/**
+ * Flag to track if we are currently inside a transaction block.
+ * When true, 'execute' will bypass the queue to avoid deadlocks
+ * and ensure atomicity within the transaction.
+ */
+let isTransactionActive = false;
+
 export async function execute(sql, bind = []) {
   // Ensure DB is initialized before queuing
   if (!db) await initDB();
+
+  // If we are in a transaction, we are already inside the queue lock.
+  // Bypass the queue to execute immediately.
+  if (isTransactionActive) {
+    return executeRaw(sql, bind);
+  }
 
   return new Promise((resolve, reject) => {
     queryQueue = queryQueue.then(async () => {
@@ -52,31 +65,48 @@ export async function execute(sql, bind = []) {
 
 /**
  * Helper to wrap database operations in a transaction.
- * Ensures that all operations within the callback are executed atomically.
+ * Ensures that all operations within the callback are executed atomically
+ * as a single batch in the execution queue.
  * 
  * @param {Function} callback - Async function containing database operations.
  * @returns {Promise<any>} - The result of the callback.
- * @throws {Error} - Re-throws any error encountered during execution after rolling back.
  */
 export async function wrapInTransaction(callback) {
-  let transactionActive = false;
-  try {
-    await execute('BEGIN TRANSACTION');
-    transactionActive = true;
-    const result = await callback();
-    await execute('COMMIT');
-    transactionActive = false;
-    return result;
-  } catch (err) {
-    if (transactionActive) {
-      try {
-        await execute('ROLLBACK');
-      } catch (rollbackErr) {
-        console.warn("Rollback failed (likely transaction already closed):", rollbackErr.message);
-      }
-    }
-    throw err;
+  if (!db) await initDB();
+
+  // If a transaction is already active, just execute the callback.
+  // This prevents deadlocks from recursive calls.
+  if (isTransactionActive) {
+    return callback();
   }
+
+  return new Promise((resolve, reject) => {
+    queryQueue = queryQueue.then(async () => {
+      let rollbackNeeded = false;
+      try {
+        await executeRaw('BEGIN TRANSACTION');
+        rollbackNeeded = true;
+        isTransactionActive = true;
+        
+        const result = await callback();
+        
+        isTransactionActive = false;
+        await executeRaw('COMMIT');
+        rollbackNeeded = false;
+        resolve(result);
+      } catch (err) {
+        isTransactionActive = false;
+        if (rollbackNeeded) {
+          try {
+            await executeRaw('ROLLBACK');
+          } catch (rollbackErr) {
+            console.warn("Rollback failed:", rollbackErr.message);
+          }
+        }
+        reject(err);
+      }
+    });
+  });
 }
 
 /**
@@ -166,6 +196,8 @@ export async function initDB() {
         vfs.name
       );
 
+      await executeRaw('PRAGMA foreign_keys = ON;');
+
       await alignSchema();
       await seedDataInternal();
       
@@ -233,7 +265,7 @@ export async function alignSchema() {
     } else if (!hasContractId) {
        // Only add if it doesn't exist and wasn't just renamed
        console.log("⚠️ Adding missing column bags.contract_id");
-       await executeRaw("ALTER TABLE bags ADD COLUMN contract_id TEXT REFERENCES contracts(id)");
+       await executeRaw("ALTER TABLE bags ADD COLUMN contract_id TEXT REFERENCES contracts(id) ON DELETE CASCADE");
     }
 
   } catch (err) {
@@ -294,56 +326,7 @@ export async function updateCell(tableName, id, column, newValue) {
 
 export async function deleteRow(tableName, id) {
   if (!db) await initDB();
-
-  await wrapInTransaction(async () => {
-    // Disable foreign keys temporarily for the cleanup operation
-    await execute("PRAGMA foreign_keys = OFF;");
-
-    if (tableName === 'producers') {
-      // Producer -> Farms -> Lots -> (Bags, Ledger, Cupping) -> Milestones
-      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?)))`, [id]);
-      await execute(`DELETE FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
-      await execute(`DELETE FROM cost_ledger WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
-      await execute(`DELETE FROM cupping_sessions WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
-      await execute(`DELETE FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?)`, [id]);
-      await execute(`DELETE FROM farms WHERE producer_id = ?`, [id]);
-    } 
-    else if (tableName === 'farms') {
-      // Farm -> Lots -> (Bags, Ledger, Cupping) -> Milestones
-      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?))`, [id]);
-      await execute(`DELETE FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
-      await execute(`DELETE FROM cost_ledger WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
-      await execute(`DELETE FROM cupping_sessions WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
-      await execute(`DELETE FROM lots WHERE farm_id = ?`, [id]);
-    }
-    else if (tableName === 'lots') {
-      // Lot -> (Bags, Ledger, Cupping) -> Milestones
-      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id = ?)`, [id]);
-      await execute(`DELETE FROM bags WHERE lot_id = ?`, [id]);
-      await execute(`DELETE FROM cost_ledger WHERE lot_id = ?`, [id]);
-      await execute(`DELETE FROM cupping_sessions WHERE lot_id = ?`, [id]);
-    }
-    else if (tableName === 'bags') {
-      await execute(`DELETE FROM bag_milestones WHERE bag_id = ?`, [id]);
-    }
-    else if (tableName === 'clients') {
-      // Client -> Contracts. Note: Bags are UNALLOCATED (contract_id set to NULL) rather than deleted.
-      await execute(`UPDATE bag_milestones SET contract_id = NULL WHERE contract_id IN (SELECT id FROM contracts WHERE client_id = ?)`, [id]);
-      await execute(`UPDATE bags SET contract_id = NULL, status = 'Available' WHERE contract_id IN (SELECT id FROM contracts WHERE client_id = ?)`, [id]);
-      await execute(`DELETE FROM contracts WHERE client_id = ?`, [id]);
-    }
-    else if (tableName === 'contracts') {
-      // Contract -> Unallocate Bags
-      await execute(`UPDATE bag_milestones SET contract_id = NULL WHERE contract_id = ?`, [id]);
-      await execute(`UPDATE bags SET contract_id = NULL, status = 'Available' WHERE contract_id = ?`, [id]);
-    }
-
-    // Finally delete the target row itself
-    await execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
-    
-    // Re-enable foreign keys
-    await execute("PRAGMA foreign_keys = ON;");
-  });
+  await execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
 }
 
 export async function exportDatabase() {

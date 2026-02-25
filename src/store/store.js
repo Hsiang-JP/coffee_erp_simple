@@ -11,7 +11,8 @@ export const useStore = create((set) => ({
   farms: [],
   producers: [],
   clients: [],
-  locations: [], // 📍 INITIALIZED: The Spatial Island
+  locations: [],
+  contractMetrics: [], 
   isDevMode: false,
   refreshTrigger: 0,
 
@@ -23,8 +24,7 @@ export const useStore = create((set) => ({
     try {
       console.log("🔄 Syncing Store Data...");
       
-      // Added locations to the Promise.all array
-      const [b, l, cr, ct, m, led, f, p, cli, locs] = await Promise.all([
+      const [b, l, cr, ct, m, led, f, p, cli, locs, cm] = await Promise.all([
         execute("SELECT * FROM bags"),
         execute("SELECT * FROM lots"),
         execute("SELECT * FROM cupping_sessions"),
@@ -36,9 +36,10 @@ export const useStore = create((set) => ({
         execute("SELECT * FROM bag_milestones"),
         execute("SELECT * FROM cost_ledger"),
         execute("SELECT * FROM farms"),
-        execute("SELECT * FROM producers"),
+        execute("SELECT * FROM producers"), // Changed to producers
         execute("SELECT * FROM clients"),
-        execute("SELECT * FROM locations") // 🗺️ FETCHED: Pulling the Island data
+        execute("SELECT * FROM locations"),
+        execute("SELECT * FROM vw_contract_journey") 
       ]);
       
       set({ 
@@ -51,7 +52,8 @@ export const useStore = create((set) => ({
         farms: f || [],
         producers: p || [],
         clients: cli || [],
-        locations: locs || [] // ⚓️ SAVED: Updating the store
+        locations: locs || [],
+        contractMetrics: cm || [] // ✅ Using 'cm' from the array above
       });
       
       console.log("✅ Store Synced");

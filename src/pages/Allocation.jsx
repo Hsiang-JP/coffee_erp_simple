@@ -1,21 +1,41 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { execute } from '../db/dbSetup';
 import { allocateBags } from '../utils/allocation';
 import { useStore } from '../store/store';
 import { finalizeAllocation } from '../db/services/allocationService';
+import { getInventory, getClients, applyGravity } from '../db/services/inventoryService';
 import gsap from 'gsap';
 
 const Allocation = () => {
-  const { lots, cuppingReports, refreshTrigger } = useStore();
+  const { lots, refreshTrigger } = useStore();
+  
+  // Base State
   const [inventory, setInventory] = useState([]);
-  // ADDED: salePrice to state
-  const [reqs, setReqs] = useState({ minScore: 80, requiredWeight: 276, variety: '', flavorNote: '', clientId: '', salePrice: '' });
-  const [results, setResults] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hoveredBag, setHoveredBag] = useState(null);
-  const [clients, setClients] = useState([]);
+  
+  // The Allocation Results State (Now manually controlled)
+  const [results, setResults] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // The User Inputs
+  const [reqs, setReqs] = useState({ 
+    minScore: 80, 
+    requiredWeight: 276, 
+    variety: '', 
+    flavorNote: '', 
+    clientId: '', 
+    salePrice: '' 
+  });
+
+  // Trigger GSAP animation when results change
+  useEffect(() => {
+    if (results.length > 0) {
+      gsap.fromTo(".bag-square-selected", { scale: 0.8 }, { scale: 1.1, duration: 0.4, stagger: 0.05 });
+    }
+  }, [results]);
+
+  // Map the warehouse grid visually based on current inventory
   const stockCodeMap = useMemo(() => {
     const map = new Map();
     inventory.forEach(bag => {
@@ -33,34 +53,18 @@ const Allocation = () => {
 
   const loadClients = async () => {
     try {
-      const data = await execute(`SELECT * FROM clients ORDER BY name ASC`);
+      const data = await getClients();
       setClients(data);
     } catch (err) {
       console.error("Failed to load clients:", err);
     }
   };
 
+  // Background sync for when the component mounts or other pages modify data
   const loadInventory = async () => {
     setLoading(true);
     try {
-      const data = await execute(`
-        SELECT 
-          b.*, 
-          l.public_id, 
-          l.variety, 
-          l.process_method, 
-          (l.base_farm_cost_per_kg + COALESCE((SELECT SUM(amount_usd) FROM cost_ledger WHERE lot_id = l.id), 0) / NULLIF(l.total_weight_kg, 1)) AS current_per_kg_cost,
-          (l.base_farm_cost_per_kg + COALESCE((SELECT SUM(amount_usd) FROM cost_ledger WHERE lot_id = l.id), 0) / NULLIF(l.total_weight_kg, 1)) AS base_farm_cost_per_kg,
-          f.name as farm_name,
-          cs.final_score AS quality_score,
-          cs.primary_flavor_note,
-          cs.notes as cupping_notes
-        FROM bags b
-        JOIN lots l ON b.lot_id = l.id
-        JOIN farms f ON l.farm_id = f.id
-        LEFT JOIN cupping_sessions cs ON l.id = cs.lot_id
-        WHERE b.status IN ('Available', 'Allocated') 
-      `);
+      const data = await getInventory();
       setInventory(data);
     } catch (err) { 
       console.error("Sync failed:", err); 
@@ -69,53 +73,53 @@ const Allocation = () => {
     }
   };
 
+  // Hydrate data on mount and when the global refresh trigger fires
   useEffect(() => { 
     loadInventory(); 
     loadClients(); 
   }, [refreshTrigger]);
 
-  const handleRun = () => {
-    let pool = inventory.filter(b => b.status === 'Available');
-    const options = allocateBags({ ...reqs, minScore: parseFloat(reqs.minScore) }, pool);
-    setResults(options);
-    if (options.length > 0) {
-      gsap.fromTo(".bag-square-selected", { scale: 0.8 }, { scale: 1.1, duration: 0.4, stagger: 0.05 });
-    } else {
-      alert("No bags match these criteria.");
+  // --- CHANGED: Imperative Click Handler ---
+  // This ONLY runs the algorithm when the user explicitly clicks the button.
+  const handleFindOptions = async () => {
+    setLoading(true);
+    try {
+      // 1. Get the absolute latest inventory from SQLite to ensure we don't double-book
+      const data = await getInventory();
+      setInventory(data); 
+      
+      // 2. Isolate available bags
+      const availablePool = data.filter(b => b.status === 'Available');
+      
+      // 3. Run the algorithm based on the CURRENT inputs
+      const generatedOptions = allocateBags({ 
+        ...reqs, 
+        minScore: parseFloat(reqs.minScore) 
+      }, availablePool);
+      
+      // 4. Set the results to the UI
+      setResults(generatedOptions);
+      setSelectedIndex(0); // Reset selection to the top option
+      
+      // 5. Alert if nothing matches
+      if (generatedOptions.length === 0) {
+        alert("No allocation options found. Please adjust your criteria (e.g., lower the Min Quality Score or clear the Variety filter).");
+      }
+    } catch (err) {
+      console.error("Failed to find options:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleApplyGravity = async () => {
     setLoading(true);
     try {
-      const pallets = {};
-      inventory.forEach(bag => {
-        if (!bag.stock_code) return;
-        const [p, l] = bag.stock_code.split('-');
-        if (!pallets[p]) pallets[p] = [];
-        pallets[p].push({ id: bag.id, level: parseInt(l, 10) });
-      });
-
-      let movedCount = 0;
-
-      for (const p in pallets) {
-        pallets[p].sort((a, b) => a.level - b.level);
-        let targetLevel = 1; 
-        
-        for (const bag of pallets[p]) {
-          if (bag.level !== targetLevel) {
-            await execute(
-              `UPDATE bags SET stock_code = ? WHERE id = ?`, 
-              [`${p}-${targetLevel}`, bag.id]
-            );
-            movedCount++;
-          }
-          targetLevel++; 
-        }
-      }
-
+      const movedCount = await applyGravity(inventory);
       if (movedCount > 0) {
         await loadInventory();
+        // Clear results since bags moved physically
+        setResults([]); 
       } else {
         alert("Shelves are already consolidated. No floating bags detected.");
       }
@@ -131,7 +135,6 @@ const Allocation = () => {
       alert('Please select a Client to generate the contract.');
       return;
     }
-    // ADDED: Guard to ensure Sale Price is entered
     if (!reqs.salePrice || parseFloat(reqs.salePrice) <= 0) {
       alert('Please enter a valid Agreed Sale Price ($/kg).');
       return;
@@ -146,7 +149,6 @@ const Allocation = () => {
     if (window.confirm(`Generate contract for Client: ${clientName} at $${reqs.salePrice}/kg?`)) {
       try {
         setLoading(true);
-        // ADDED: Passing sale_price_per_kg to backend
         const result = await finalizeAllocation(reqs.clientId, selectedBags, { 
           required_quality_score: parseFloat(reqs.minScore),
           sale_price_per_kg: parseFloat(reqs.salePrice)
@@ -154,7 +156,11 @@ const Allocation = () => {
         
         if (result.success) {
           alert(`Contract Generated! ID: ${result.publicId}\nSale Price: $${result.salePricePerKg.toFixed(2)}/kg`);
-          await loadInventory(); 
+          setResults([]); // Clear the options UI 
+          await loadInventory(); // Updates local allocation grid
+          
+          // 🚨 THE FIX: Tell the global store to fetch the new contract and milestones!
+          await fetchAll(); 
         }
       } catch (error) {
         alert(`Error: ${error.message}`);
@@ -167,6 +173,66 @@ const Allocation = () => {
   const palettes = ['AA', 'AB', 'AC', 'AD', 'AE', 'AF'];
   const levels = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
   const selectedBags = results[selectedIndex]?.bags || [];
+
+  const warehouseGrid = useMemo(() => (
+    <div className="flex gap-8 justify-center relative">
+      {palettes.map(p => (
+        <div key={p} className="pallet-column flex flex-col gap-3">
+          {levels.map(l => {
+            const code = `${p}-${l}`;
+            const bag = stockCodeMap.get(code);
+            const isSelected = selectedBags.some(b => b.id === bag?.id);
+            const isAllocated = bag?.status === 'Allocated';
+            
+            return (
+              <div key={l} 
+                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ease-bounce relative
+                  ${isSelected ? 'bg-emerald-500 border-emerald-600 scale-110 shadow-xl shadow-emerald-200 z-10 bag-square-selected' : 
+                    isAllocated ? 'bg-blue-600 border-blue-800' : 
+                    bag ? 'bg-zinc-900 border-zinc-950 hover:bg-black cursor-pointer' : 
+                    'bg-stone-50 border-stone-100 opacity-20'}
+                `}
+                onMouseEnter={() => bag && setHoveredBag(bag)}
+                onMouseLeave={() => setHoveredBag(null)}
+              >
+                {isSelected && <span className="text-white font-black text-xs">✓</span>}
+                
+                {hoveredBag && hoveredBag.id === bag?.id && (
+                  <div className="absolute bottom-full mb-4 p-5 bg-zinc-900 text-white rounded-2xl shadow-2xl z-[100] border border-zinc-800 min-w-[170px] pointer-events-none">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">
+                      {hoveredBag.farm_name}
+                    </p>
+                    <div className="flex justify-between items-baseline mb-3">
+                      <p className="text-xs font-bold">{hoveredBag.public_id}</p>
+                      <p className="text-[9px] font-medium text-stone-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                        {hoveredBag.variety || 'Unknown'}
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between border-t border-zinc-800 pt-3 text-[9px] font-black uppercase text-stone-500">
+                      <span>True Cost</span>
+                      <span className="text-emerald-400 font-mono font-bold">
+                        ${hoveredBag.current_per_kg_cost?.toFixed(2)}/kg
+                      </span>
+                    </div>
+                    <div className="flex justify-between mt-1 text-[9px] font-black uppercase text-stone-500">
+                      <span>Quality</span>
+                      <span className={hoveredBag.quality_score ? "text-white" : "text-amber-400 font-bold"}>
+                        {hoveredBag.quality_score ? hoveredBag.quality_score : "PENDING QC"}
+                      </span>
+                    </div>
+                    
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 border-r border-b border-zinc-800 rotate-45"></div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div className="text-center text-[10px] font-black text-stone-300 mt-4">{p}</div>
+        </div>
+      ))}
+    </div>
+  ), [stockCodeMap, selectedBags, hoveredBag]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 p-8 bg-[#F9F7F2] min-h-screen font-sans">
@@ -188,8 +254,10 @@ const Allocation = () => {
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Variety</label>
               <select value={reqs.variety} onChange={e => setReqs({...reqs, variety: e.target.value})} className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-bold text-sm">
-                <option value="">All Varieties</option>
-                {[...new Set(lots.map(l => l.variety))].filter(Boolean).sort().map(v => <option key={v} value={v}>{v}</option>)}
+                <option value="">All</option>
+                {[...new Set((lots || []).map(l => l?.variety))].filter(Boolean).sort().map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -211,14 +279,13 @@ const Allocation = () => {
               onChange={e => setReqs({...reqs, clientId: e.target.value})}
               className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-bold text-sm text-zinc-800 transition-all focus:ring-2 focus:ring-stone-200"
             >
-              <option value="">-- Select Registered Client --</option>
+              <option value="">-- Select Client --</option>
               {clients.map(client => (
                 <option key={client.id} value={client.id}>{client.name}</option>
               ))}
             </select>
           </div>
 
-          {/* ADDED: Agreed Sale Price Input */}
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Agreed Sale Price ($/kg)</label>
             <div className="relative">
@@ -226,8 +293,8 @@ const Allocation = () => {
               <input 
                 type="number" 
                 step="0.01" 
-                min="0.01"      // <--- Prevents negative numbers or zero
-                required        // <--- Browser-level NOT NULL check
+                min="0.01"      
+                required        
                 value={reqs.salePrice} 
                 placeholder="0.00" 
                 className="w-full p-4 pl-8 bg-stone-50 rounded-2xl outline-none font-bold font-mono text-sm"
@@ -235,8 +302,12 @@ const Allocation = () => {
             </div>
           </div>
 
-          <button onClick={handleRun} disabled={loading} className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-colors">
-            {loading ? "Syncing..." : "Optimize Selection"}
+          <button 
+            onClick={handleFindOptions} 
+            disabled={loading} 
+            className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-colors active:scale-95"
+          >
+            {loading ? "Searching Engine..." : "Find Allocation Options"}
           </button>
         </div>
 
@@ -251,12 +322,10 @@ const Allocation = () => {
                 </div>
               </button>
               
-              {/* ADDED: Detailed Bag List Preview */}
               {selectedIndex === i && (
                 <div className="mt-5 space-y-3 border-t border-stone-100 pt-5 animate-in slide-in-from-top-2 duration-300">
                   <h4 className="text-[9px] font-black uppercase text-stone-400 tracking-widest">Included Bags Preview</h4>
                   
-                  {/* Scrollable list so it doesn't break the UI if they select 50 bags */}
                   <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {opt.bags.map(bag => (
                       <div key={bag.id} className="flex justify-between items-center bg-stone-50 p-3 rounded-xl border border-stone-100">
@@ -308,62 +377,7 @@ const Allocation = () => {
           </div>
         </div>
 
-        <div className="flex gap-8 justify-center relative">
-          {palettes.map(p => (
-            <div key={p} className="pallet-column flex flex-col gap-3">
-              {levels.map(l => {
-                const code = `${p}-${l}`;
-                const bag = stockCodeMap.get(code);
-                const isSelected = selectedBags.some(b => b.id === bag?.id);
-                const isAllocated = bag?.status === 'Allocated';
-                return (
-                  <div key={l} 
-                    className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ease-bounce relative
-                      ${isSelected ? 'bg-emerald-500 border-emerald-600 scale-110 shadow-xl shadow-emerald-200 z-10 bag-square-selected' : 
-                        isAllocated ? 'bg-blue-600 border-blue-800' : 
-                        bag ? 'bg-zinc-900 border-zinc-950 hover:bg-black cursor-pointer' : 
-                        'bg-stone-50 border-stone-100 opacity-20'}
-                    `}
-                    onMouseEnter={() => bag && setHoveredBag(bag)}
-                    onMouseLeave={() => setHoveredBag(null)}
-                  >
-                    {isSelected && <span className="text-white font-black text-xs">✓</span>}
-                    
-                    {hoveredBag && hoveredBag.id === bag?.id && (
-                      <div className="absolute bottom-full mb-4 p-5 bg-zinc-900 text-white rounded-2xl shadow-2xl z-[100] border border-zinc-800 min-w-[170px] pointer-events-none">
-                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">
-                          {hoveredBag.farm_name}
-                        </p>
-                        <div className="flex justify-between items-baseline mb-3">
-                          <p className="text-xs font-bold">{hoveredBag.public_id}</p>
-                          <p className="text-[9px] font-medium text-stone-400 bg-zinc-800 px-1.5 py-0.5 rounded">
-                            {hoveredBag.variety || 'Unknown'}
-                          </p>
-                        </div>
-
-                        <div className="flex justify-between border-t border-zinc-800 pt-3 text-[9px] font-black uppercase text-stone-500">
-                          <span>True Cost</span>
-                          <span className="text-emerald-400 font-mono font-bold">
-                            ${hoveredBag.current_per_kg_cost?.toFixed(2)}/kg
-                          </span>
-                        </div>
-                        <div className="flex justify-between mt-1 text-[9px] font-black uppercase text-stone-500">
-                          <span>Quality</span>
-                          <span className={hoveredBag.quality_score ? "text-white" : "text-amber-400 font-bold"}>
-                            {hoveredBag.quality_score ? hoveredBag.quality_score : "PENDING QC"}
-                          </span>
-                        </div>
-                        
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 border-r border-b border-zinc-800 rotate-45"></div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <div className="text-center text-[10px] font-black text-stone-300 mt-4">{p}</div>
-            </div>
-          ))}
-        </div>
+        {warehouseGrid}
       </main>
     </div>
   );
