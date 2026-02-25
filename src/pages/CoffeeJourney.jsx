@@ -64,7 +64,8 @@ const CoffeeJourney = () => {
         total_landed: avgFarmPlusLedger + totalLogisticsPerKg,
         farm_cost: avgFarmPlusLedger,
         ops_cost: totalLogisticsPerKg,
-        raw_data: logisticsCosts
+        raw_data: logisticsCosts,
+        total_weight: totalContractWeight // ADDED: Passing weight to the UI
       },
       currentStage: relevantMilestones[0].current_stage,
       nextStage: getNextStage(relevantMilestones[0].current_stage)
@@ -93,7 +94,7 @@ const CoffeeJourney = () => {
 
           <div className="p-8 space-y-8">
             <select 
-              className="w-full bg-stone-100 border-none rounded-xl p-4 text-sm font-bold outline-none"
+              className="w-full bg-stone-100 border-none rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
               value={selectedContractId}
               onChange={(e) => setSelectedContractId(e.target.value)}
             >
@@ -119,7 +120,16 @@ const CoffeeJourney = () => {
                     </span>
                   </div>
                   
-                  <div className="space-y-2">
+                  {/* ADDED: Total Weight Display */}
+                  <div className="flex justify-between items-center border-b border-stone-200 pb-3">
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">Total Weight</span>
+                    <span className="text-sm font-black text-zinc-900">
+                      {metrics?.total_weight || 0}
+                      <span className="text-[10px] text-stone-400 font-medium ml-1">KG</span>
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 pt-1">
                     <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest block">Varieties</span>
                     <div className="flex flex-wrap gap-1.5">
                       {[...new Set(contractBags.map(b => b.variety))].map(v => (
@@ -139,14 +149,14 @@ const CoffeeJourney = () => {
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
                       <input 
                         type="number" step="0.01" value={costInput}
-                        className="w-full bg-stone-50 border border-stone-200 rounded-xl p-4 pl-8 font-mono font-bold outline-none"
+                        className="w-full bg-stone-50 border border-stone-200 rounded-xl p-4 pl-8 font-mono font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                         placeholder="0.00"
                         onChange={e => setCostInput(e.target.value)}
                       />
                     </div>
                     <button 
                       onClick={handleAdvance} disabled={isAdvancing}
-                      className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+                      className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                     >
                       {isAdvancing ? 'Processing...' : `Move to ${nextStage}`}
                     </button>
@@ -172,8 +182,12 @@ const CoffeeJourney = () => {
 
       {/* Main Content: Map & Stepper */}
       <div className="lg:col-span-8 space-y-6">
-        <div className="bg-white h-[500px] rounded-3xl shadow-sm border border-stone-200 p-2 relative">
-          <CoffeeMap currentStage={currentStage} />
+        <div className="bg-white h-[500px] rounded-3xl shadow-sm border border-stone-200 p-2 relative overflow-hidden">
+          <CoffeeMap 
+            currentStage={currentStage} 
+            bags={contractBags} 
+            contractId={selectedContractId} 
+          />
         </div>
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
           <CostStepper currentStage={currentStage} costs={metrics?.raw_data} />

@@ -136,13 +136,19 @@ CREATE TABLE IF NOT EXISTS bag_milestones (
 -- ==========================================
 -- 5. VIEWS & TRIGGERS
 -- ==========================================
--- Update in CORE_SCHEMA Section 5
-CREATE VIEW IF NOT EXISTS available_inventory_optimization AS
+-- Drop the old one first if updating an existing database
+DROP VIEW IF EXISTS available_inventory_optimization;
+
+CREATE VIEW available_inventory_optimization AS
 SELECT 
     b.*,
     l.variety,
     l.process_method,
     l.base_farm_cost_per_kg,
+    
+    -- THE MAGIC LINE: Dynamically calculates the true current cost per kg
+    (l.base_farm_cost_per_kg + (COALESCE((SELECT SUM(amount_usd) FROM cost_ledger WHERE lot_id = l.id), 0) / NULLIF(l.total_weight_kg, 1))) AS current_per_kg_cost,
+    
     CAST(SUBSTR(b.stock_code, INSTR(b.stock_code, '-') + 1) AS INTEGER) AS storage_level,
     (SELECT primary_flavor_note FROM cupping_sessions WHERE lot_id = b.lot_id ORDER BY cupping_date DESC LIMIT 1) AS primary_flavor_note,
     (SELECT AVG(total_score) FROM cupping_sessions WHERE lot_id = b.lot_id) AS quality_score
