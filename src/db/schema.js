@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS cupping_sessions (
     public_id TEXT,
     lot_id TEXT NOT NULL,
     cupper_name TEXT NOT NULL,
-    cupping_date TEXT,
+    cupping_date TEXT NOT NULL,
     roast_level REAL,
     fragrance_dry REAL,
     fragrance_break REAL,

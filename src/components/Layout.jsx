@@ -14,8 +14,8 @@ const Layout = ({ children }) => {
 
   const navItems = [
     { name: 'Coffee Journey', path: '/' },
-    { name: 'QC Reports', path: '/qc' },
     { name: 'Allocation', path: '/allocation' },
+    { name: 'QC Reports', path: '/qc' },
     { name: 'Data Entry', path: '/entry' },
 
   ];
