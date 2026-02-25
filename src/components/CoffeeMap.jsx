@@ -18,18 +18,35 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
   const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/main/world.json";
   const currentIdx = STAGE_IDX[currentStage] || 0;
 
-  const getCoords = (name) => {
-    if (name === 'Cora') return [-72.6910885632289, -12.849994725082212]; 
-    if (name === 'Callao Port') return [-77.1500, -12.0500];
+  const getCoords = (searchQueries) => {
+    const queries = Array.isArray(searchQueries) ? searchQueries : [searchQueries];
+    
+    for (const query of queries) {
+      if (!query) continue;
+      
+      if (query === 'Cora') return [-72.6910885632289, -12.849994725082212];
+      if (query === 'Callao Port') return [-77.1500, -12.0500];
 
-    const loc = Array.isArray(locations) ? locations.find(l => l.name === name) : null;
-    if (loc) return [loc.longitude, loc.latitude];
+      if (Array.isArray(locations)) {
+        const normalized = query.toLowerCase().trim();
+        let loc = locations.find(l => l.name.toLowerCase() === normalized);
+        
+        if (!loc) {
+           loc = locations.find(l => 
+             l.name.toLowerCase().includes(normalized) || 
+             normalized.includes(l.name.toLowerCase())
+           );
+        }
+        if (loc) return [loc.longitude, loc.latitude]; 
+      }
+
+      if (query.includes('Peru')) return [-75.01, -9.19];
+      if (query.includes('Japan')) return [138.25, 36.20];
+      if (query.includes('Taiwan')) return [121.4876, 25.0345];
+      if (query.includes('USA')) return [-122.3321, 47.6062];
+    }
     
-    if (name?.includes('Japan')) return [138.25, 36.20];
-    if (name?.includes('Taiwan')) return [121.4876, 25.0345];
-    if (name?.includes('USA')) return [-122.3321, 47.6062]; 
-    
-    return [-77.04, -12.04]; 
+    return null; 
   };
 
   const network = useMemo(() => {
@@ -50,7 +67,7 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     const exportPortCoords = getCoords('Callao Port');
 
     uniqueRegions.forEach(region => {
-      const farmCoords = getCoords(region); 
+      const farmCoords = getCoords([region, 'Peru']) || [-77.04, -12.04]; 
       markers.push({ name: region, coordinates: farmCoords, stage: 0 });
       lines.push({ from: farmCoords, to: coraCoords, stageIndex: 0 });
     });
@@ -59,22 +76,30 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     lines.push({ from: coraCoords, to: exportPortCoords, stageIndex: 1 });
 
     let destCoords = [139.77, 35.62]; 
+    let finalCoords = [139.97, 35.82]; 
+
     if (contractId) {
       const contract = contracts?.find(c => c.id === contractId);
       const client = clients?.find(c => c.id === contract?.client_id);
-      if (client?.destination_port) {
-        destCoords = getCoords(client.destination_port);
-      } else if (client?.destination_city) {
-        destCoords = getCoords(client.destination_city);
+      
+      if (client) {
+        const resolvedImport = getCoords([client.destination_port, client.destination_city, client.destination_country]);
+        if (resolvedImport) destCoords = resolvedImport;
+
+        const resolvedFinal = getCoords([client.destination_city, client.destination_country, client.destination_port]);
+        if (resolvedFinal) finalCoords = resolvedFinal;
+        
+        if (destCoords[0] === finalCoords[0] && destCoords[1] === finalCoords[1]) {
+           finalCoords = [destCoords[0] + 0.15, destCoords[1] + 0.15];
+        }
       }
     }
 
-    markers.push({ name: 'Export Port', coordinates: exportPortCoords, stage: 2 });
+    markers.push({ name: 'Export Port', coordinates: destCoords, stage: 2 });
     lines.push({ from: exportPortCoords, to: destCoords, stageIndex: 2 });
 
-    markers.push({ name: 'Import Port', coordinates: destCoords, stage: 3 });
-    markers.push({ name: 'Final Roastery', coordinates: [destCoords[0] + 0.2, destCoords[1] + 0.2], stage: 4 });
-    lines.push({ from: destCoords, to: [destCoords[0] + 0.2, destCoords[1] + 0.2], stageIndex: 3 });
+    markers.push({ name: 'Final Roastery', coordinates: finalCoords, stage: 4 });
+    lines.push({ from: destCoords, to: finalCoords, stageIndex: 3 });
 
     return { lines, markers };
   }, [bags, contractId, farms, contracts, clients, lots, locations]);
@@ -110,32 +135,30 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
         </Geographies>
         
         {network.lines.map((line, i) => {
-          const isCompleted = line.stageIndex < currentIdx;
+          // 🚨 THE FIX: Do not draw any lines that belong to future stages!
+          if (line.stageIndex >= currentIdx) return null;
 
           return (
             <Line
               key={`line-${i}`}
               from={line.from}
               to={line.to}
-              stroke={isCompleted ? "#10B981" : "#d1d5db"}
-              strokeWidth={isCompleted ? 2.5 : 1.5}
+              stroke="#10B981"
+              strokeWidth={2.5}
               strokeLinecap="round"
-              style={{
-                strokeDasharray: isCompleted ? "none" : "4 4",
-                opacity: isCompleted ? 1 : 0.5,
-                transition: "all 0.5s ease-in-out"
-              }}
             />
           );
         })}
 
         {network.markers.map((marker, i) => {
-          const isReached = marker.stage <= currentIdx;
+          // 🚨 THE FIX: Do not draw any destination dots until the coffee arrives!
+          if (marker.stage > currentIdx) return null;
+
           const isCurrent = marker.stage === currentIdx;
 
           return (
             <Marker key={`marker-${i}`} coordinates={marker.coordinates}>
-              {/* 🚨 THE FIX: Native SVG Animation placed FIRST so it renders BEHIND the main dot */}
+              {/* Pulsing Aura - Only on the active, current location */}
               {isCurrent && (
                 <circle r="4" fill="#10b981">
                   <animate attributeName="r" begin="0s" dur="1.5s" values="4; 16" repeatCount="indefinite" />
@@ -143,11 +166,11 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
                 </circle>
               )}
               
-              {/* Solid Node placed SECOND so it renders ON TOP cleanly */}
+              {/* Every node reached so far gets a solid green dot */}
               <circle 
                 r={isCurrent ? 6 : 4} 
-                fill={isReached ? "#10b981" : "#fff"} 
-                stroke={isReached ? "#fff" : "#9ca3af"} 
+                fill="#10b981" 
+                stroke="#fff" 
                 strokeWidth={1.5} 
                 style={{ transition: "all 0.5s ease-in-out" }}
               />
