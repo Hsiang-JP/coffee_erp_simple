@@ -98,8 +98,8 @@ const CoffeeMap = ({ currentStage = 'Farm', bags = [], contractId = null }) => {
       <ComposableMap 
         projection="geoMercator"
         projectionConfig={{ 
-          scale: 140, 
-          rotate: [160, 0, 0], 
+          scale: 150, 
+          rotate: [200, 0, 0], 
           center: [0, 20]      
         }} 
         className="w-full h-full"

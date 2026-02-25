@@ -49,15 +49,6 @@ const DataManagement = () => {
             { key: 'certification', label: 'Cert', type: 'select', options: ['Organic', 'Fair Trade', 'Rainforest Alliance', 'None'] }
         ] 
     },
-    locations: {
-        label: 'GEO',
-        columns: [
-            { key: 'name', label: 'Place Name', type: 'text' },
-            { key: 'type', label: 'Type', type: 'select', options: ['Farm/Region', 'Warehouse', 'Port', 'Client/City', 'Other'] },
-            { key: 'latitude', label: 'Lat', type: 'number' },
-            { key: 'longitude', label: 'Lon', type: 'number' }
-        ]
-    },
     lots: { 
         label: 'Lots', 
         columns: [
@@ -123,6 +114,15 @@ const DataManagement = () => {
             { key: 'cost_to_client', label: 'To Client', type: 'number' }, 
             { key: 'final_sale_price', label: 'Total Value', type: 'number', disabled: true }
         ] 
+    },
+    locations: {
+        label: 'GEO',
+        columns: [
+            { key: 'name', label: 'Place Name', type: 'text' },
+            { key: 'type', label: 'Type', type: 'select', options: ['Farm/Region', 'Warehouse', 'Port', 'Client/City', 'Other'] },
+            { key: 'latitude', label: 'Lat', type: 'number' },
+            { key: 'longitude', label: 'Lon', type: 'number' }
+        ]
     }
   };
 
