@@ -164,27 +164,65 @@ const DataManagement = () => {
     reader.readAsText(file);
   };
 
-  const handleDeleteAllData = async () => {
-    if (!confirm("Are you sure you want to delete ALL data and re-seed?")) return;
+  // 1. The Updated Function
+  const handleClean = async () => {
+    if (!confirm("TOTAL WIPE: This will empty ALL data tables. Proceed?")) return;
+    
     try {
       await wrapInTransaction(async () => {
-        const tables = ['bag_milestones', 'cupping_sessions', 'cost_ledger', 'bags', 'contracts', 'lots', 'farms', 'producers', 'clients'];
+        // Disable constraints temporarily
+        await execute("PRAGMA foreign_keys = OFF;");
+
+        const tables = [
+          'bag_milestones', 
+          'cupping_sessions', 
+          'cost_ledger', 
+          'bags', 
+          'contracts', 
+          'lots', 
+          'farms', 
+          'producers', 
+          'clients'
+        ];
+
+        // Empty the tables
         for (const table of tables) {
           await execute(`DELETE FROM ${table}`);
         }
+
+        // Safely attempt to reset IDs. If the table doesn't exist, it quietly catches the error and moves on.
+        try {
+          await execute("DELETE FROM sqlite_sequence");
+        } catch (seqErr) {
+          console.warn("sqlite_sequence table not found, skipping ID reset.");
+        }
+
+        // Re-enable safety
+        await execute("PRAGMA foreign_keys = ON;");
       });
-      await seedDataInternal();
-      alert("System Reset & Re-seeded.");
+
+      alert("System clean. The database is now completely empty.");
       triggerRefresh();
-    } catch (err) { alert("Reset failed: " + err.message); }
+    } catch (err) { 
+      console.error("Clean failed:", err);
+      alert("Clean failed: " + err.message); 
+    }
   };
 
+  // UPDATED: FORCE DELETE (Bypasses constraints for individual row removal)
   const handleDelete = async (table, id) => {
-    if (!confirm(`Delete entry from ${table}?`)) return;
+    if (!confirm(`FORCE DELETE from ${table}? This will bypass relational safety.`)) return;
     try {
-      await deleteRow(table, id);
+      await wrapInTransaction(async () => {
+        await execute("PRAGMA foreign_keys = OFF;");
+        await deleteRow(table, id);
+        await execute("PRAGMA foreign_keys = ON;");
+      });
       triggerRefresh();
-    } catch (e) { alert("Referential Integrity: Cannot delete record while it is linked elsewhere."); }
+    } catch (e) { 
+      console.error(e);
+      alert("Force Delete Failed: " + e.message); 
+    }
   };
 
   // --- RENDER SECTION ---
@@ -196,9 +234,12 @@ const DataManagement = () => {
           <button onClick={runSimulation} className="px-4 py-2 bg-indigo-900/20 text-indigo-400 border border-indigo-900/50 rounded-lg hover:bg-indigo-900/40 transition-all text-xs font-bold uppercase tracking-widest">
             Simulate Scenario
           </button>
-          <button onClick={handleDeleteAllData} className="px-4 py-2 bg-red-900/20 text-red-400 border border-red-900/50 rounded-lg hover:bg-red-900/40 transition-all text-xs font-bold uppercase tracking-widest">
-            Nuke & Seed
+          
+          {/* Changed "Nuke & Seed" to "Soft Wipe & Seed" */}
+          <button onClick={handleClean} className="px-4 py-2 bg-red-900/20 text-red-400 border border-red-900/50 rounded-lg hover:bg-red-900/40 transition-all text-xs font-bold uppercase tracking-widest">
+            Clean
           </button>
+
           <button onClick={handleExport} className="px-4 py-2 bg-zinc-800 text-zinc-100 rounded-lg hover:bg-zinc-700 text-xs font-bold uppercase tracking-widest">
             Backup JSON
           </button>
@@ -209,7 +250,6 @@ const DataManagement = () => {
         </div>
       </div>
 
-      {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto mb-6 no-scrollbar border-b border-zinc-800 pb-2">
         {Object.keys(tableConfig).map(key => (
           <button 
@@ -222,7 +262,6 @@ const DataManagement = () => {
         ))}
       </div>
 
-      {/* Data Table */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl relative">
         <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -251,6 +290,7 @@ const DataManagement = () => {
                     </td>
                     ))}
                     <td className="p-4 text-right">
+                    {/* Individual Force Delete button now uses updated logic */}
                     <button onClick={() => handleDelete(activeTab, row.id)} className="text-zinc-600 hover:text-red-400 font-bold px-2 transition-colors">✕</button>
                     </td>
                 </tr>
@@ -259,7 +299,6 @@ const DataManagement = () => {
             </table>
         </div>
 
-        {/* Restricted Area Overlay (Triggered by isDevMode store state) */}
         {!isDevMode && (
             <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-[2px] z-50 flex items-center justify-center pointer-events-none">
                 <div className="bg-zinc-900 text-emerald-400 font-mono text-[10px] uppercase tracking-[0.3em] px-8 py-4 rounded shadow-2xl border border-emerald-500/20 animate-pulse pointer-events-auto">

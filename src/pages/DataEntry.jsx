@@ -1,12 +1,11 @@
-import React, { useState, useMemo } from 'react'; // Added useMemo
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../store/store';
-import { wrapInTransaction } from '../db/dbSetup';
-import { execute } from '../db/dbSetup';
+import { wrapInTransaction, execute } from '../db/dbSetup';
 import { generateStockCodes } from '../utils/warehouseUtils';
 import { useBuyLot } from '../hooks/useCoffeeData';
 import SCAACuppingForm from '../components/SCAACuppingForm';
 
-// --- Form Components (To be implemented) ---
+// --- Form Components ---
 const NewProducerForm = () => {
   const [name, setName] = useState('');
   const [relationship, setRelationship] = useState('Other');
@@ -125,14 +124,12 @@ const BuyCoffeeForm = () => {
   const [farmId, setFarmId] = useState('');
   const [variety, setVariety] = useState('Other');
   const [processMethod, setProcessMethod] = useState('Other');
-  const [inputWeight, setInputWeight] = useState(''); // Raw user input
+  const [inputWeight, setInputWeight] = useState(''); 
   const [baseCost, setBaseCost] = useState('');
   const buyLot = useBuyLot();
 
-  // --- Real-time Weight Math ---
   const BAG_SIZE = 69.0;
   
-  // Calculate how much we need to round up to reach the next full 69kg bag
   const roundedWeight = useMemo(() => {
     const val = parseFloat(inputWeight);
     if (isNaN(val) || val <= 0) return 0;
@@ -150,11 +147,10 @@ const BuyCoffeeForm = () => {
         farm_id: farmId,
         variety,
         process_method: processMethod,
-        total_weight_kg: roundedWeight, // Use the rounded value for DB insertion
+        total_weight_kg: roundedWeight,
         base_farm_cost_per_kg: parseFloat(baseCost),
       });
       alert("Successful: Lot intake complete.");
-      // Reset form
       setFarmId('');
       setVariety('Other');
       setProcessMethod('Other');
@@ -173,7 +169,6 @@ const BuyCoffeeForm = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* Farm Selection */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Source Farm</label>
           <select value={farmId} onChange={(e) => setFarmId(e.target.value)} 
@@ -183,7 +178,6 @@ const BuyCoffeeForm = () => {
           </select>
         </div>
 
-        {/* Variety & Process */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Variety</label>
@@ -205,7 +199,6 @@ const BuyCoffeeForm = () => {
           </div>
         </div>
 
-        {/* Weight Input with Rounding Logic */}
         <div className="relative">
           <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Approximate Weight (kg)</label>
           <input type="number" step="0.01" value={inputWeight} onChange={(e) => setInputWeight(e.target.value)} 
@@ -224,7 +217,6 @@ const BuyCoffeeForm = () => {
           )}
         </div>
 
-        {/* Financials */}
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Base Farm Cost ($/kg)</label>
           <div className="relative">
@@ -237,6 +229,86 @@ const BuyCoffeeForm = () => {
 
       <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] hover:bg-black transition-all shadow-xl shadow-stone-200">
         Authorize Purchase & Generate Bags
+      </button>
+    </form>
+  );
+};
+
+// --- NEW Component: Cost Ledger Form ---
+const CostLedgerForm = () => {
+  const { lots } = useStore();
+  const [lotId, setLotId] = useState('');
+  const [costType, setCostType] = useState('Transportation');
+  const [amountUsd, setAmountUsd] = useState('');
+  const [dateIncurred, setDateIncurred] = useState(new Date().toISOString().split('T')[0]);
+  const triggerRefresh = useStore((state) => state.triggerRefresh);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!lotId || !amountUsd) return;
+
+    try {
+      await execute(
+        'INSERT INTO cost_ledger (id, lot_id, cost_type, amount_usd, date_incurred) VALUES (?, ?, ?, ?, ?)',
+        [`cl-${Date.now()}`, lotId, costType, parseFloat(amountUsd), dateIncurred]
+      );
+      alert("Successful: Cost added to ledger.");
+      
+      // Reset form
+      setLotId('');
+      setCostType('Transportation');
+      setAmountUsd('');
+      setDateIncurred(new Date().toISOString().split('T')[0]);
+      triggerRefresh();
+    } catch (err) {
+      alert("Failed to add cost: " + err.message);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-4 space-y-4 max-w-2xl">
+      <h3 className="text-lg font-semibold mb-4">Register Operations Cost</h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Coffee Lot</label>
+        <select value={lotId} onChange={(e) => setLotId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white">
+          <option value="">Select Lot</option>
+          {lots.map(l => (
+            <option key={l.id} value={l.id}>{l.public_id} ({l.variety} - {l.total_weight_kg}kg)</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Cost Type</label>
+          <select value={costType} onChange={(e) => setCostType(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white">
+            <option value="Transportation">Transportation</option>
+            <option value="Milling">Milling</option>
+            <option value="Drying">Drying</option>
+            <option value="Sorting">Sorting</option>
+            <option value="Lab/Grading">Lab/Grading</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Date Incurred</label>
+          <input type="date" value={dateIncurred} onChange={(e) => setDateIncurred(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Total Amount (USD)</label>
+        <div className="relative mt-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+          <input type="number" step="0.01" value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm p-2 pl-7" placeholder="0.00" />
+        </div>
+      </div>
+
+      <button type="submit" className="mt-4 w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold rounded-md shadow-sm">
+        Register Cost to Ledger
       </button>
     </form>
   );
@@ -311,8 +383,10 @@ const DataEntry = () => {
         return <NewFarmForm />;
       case 'buyCoffee':
         return <BuyCoffeeForm />;
+      case 'costLedger': // New Case
+        return <CostLedgerForm />;
       case 'cupping':
-        return <SCAACuppingForm />; // To be implemented
+        return <SCAACuppingForm />; 
       case 'client':
         return <ClientForm />;
       default:
@@ -329,6 +403,8 @@ const DataEntry = () => {
           <TabButton name="producer" activeTab={activeTab} setActiveTab={setActiveTab}>New Producer</TabButton>
           <TabButton name="farm" activeTab={activeTab} setActiveTab={setActiveTab}>New Farm</TabButton>
           <TabButton name="buyCoffee" activeTab={activeTab} setActiveTab={setActiveTab}>Buy Coffee Lot</TabButton>
+          {/* New Tab Inserted Here */}
+          <TabButton name="costLedger" activeTab={activeTab} setActiveTab={setActiveTab}>Cost Ledger</TabButton>
           <TabButton name="cupping" activeTab={activeTab} setActiveTab={setActiveTab}>Cupping Session</TabButton>
           <TabButton name="client" activeTab={activeTab} setActiveTab={setActiveTab}>New Client</TabButton>
         </div>
@@ -346,7 +422,7 @@ const TabButton = ({ name, activeTab, setActiveTab, children }) => {
   return (
     <button
       onClick={() => setActiveTab(name)}
-      className={`block w-full text-left px-4 py-2 rounded-md ${
+      className={`block w-full text-left px-4 py-2 rounded-md transition-colors ${
         isActive ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'
       }`}
     >
