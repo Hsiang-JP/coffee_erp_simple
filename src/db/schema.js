@@ -144,8 +144,8 @@ SELECT
     l.process_method,
     l.base_farm_cost_per_kg,
     CAST(SUBSTR(b.stock_code, INSTR(b.stock_code, '-') + 1) AS INTEGER) AS storage_level,
-    -- We use total_score which, via our triggers, only sums the category scores
-    COALESCE((SELECT AVG(total_score) FROM cupping_sessions WHERE lot_id = b.lot_id), 80.0) AS quality_score
+    (SELECT primary_flavor_note FROM cupping_sessions WHERE lot_id = b.lot_id ORDER BY cupping_date DESC LIMIT 1) AS primary_flavor_note,
+    (SELECT AVG(total_score) FROM cupping_sessions WHERE lot_id = b.lot_id) AS quality_score
 FROM bags b
 JOIN lots l ON b.lot_id = l.id
 WHERE b.status = 'Available';

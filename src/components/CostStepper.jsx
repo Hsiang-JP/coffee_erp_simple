@@ -27,24 +27,12 @@ const CostStepper = ({ currentStage, costs }) => {
 
             return (
               <li key={step.id}>
-                <div className="relative pb-8">
+                {/* Increased bottom padding to make room for the moved badge */}
+                <div className="relative pb-12">
                   {/* Vertical Line */}
                   {stepIdx !== steps.length - 1 ? (
                     <span className={`absolute top-4 left-4 -ml-px h-full w-0.5 ${isComplete ? 'bg-emerald-500' : 'bg-stone-100'}`} aria-hidden="true" />
                   ) : null}
-
-                  {/* Transition Cost Badge (Placed BETWEEN stages) */}
-                  {stepIdx !== steps.length - 1 && transitionCost !== null && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 ml-4 z-20">
-                        <div className={`flex items-center gap-2 py-1 px-2 rounded-md border text-[10px] font-mono font-bold transition-all ${
-                            isComplete && transitionCost > 0 
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                                : 'bg-white border-stone-100 text-stone-300'
-                        }`}>
-                            ${transitionCost.toFixed(2)} / KG
-                        </div>
-                    </div>
-                  )}
 
                   <div className="relative flex space-x-3">
                     <div>
@@ -61,13 +49,31 @@ const CostStepper = ({ currentStage, costs }) => {
                         ) : null}
                       </span>
                     </div>
-                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                    
+                    {/* Content Container: Changed to flex-col to stack items vertically */}
+                    <div className="flex min-w-0 flex-1 flex-col pt-1.5">
                       <div>
                         <p className={`text-xs font-bold uppercase tracking-tight ${isCurrent ? 'text-stone-900' : isPast ? 'text-stone-700' : 'text-stone-300'}`}>
                           {step.name}
                         </p>
                         <p className="text-[10px] text-stone-400 mt-0.5 font-light italic">{step.description}</p>
                       </div>
+
+                      {/* Cost Badge: Moved HERE, below description. Colors preserved. Wording changed. */}
+                      {transitionCost !== null && isPast && (
+                        <div className="mt-3 flex">
+                            <div className={`flex items-center gap-2 py-1 px-2 rounded-md border text-[10px] font-mono font-bold transition-all ${
+                                // Exact same color logic as your provided code
+                                isComplete && transitionCost > 0 
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                    : 'bg-white border-stone-100 text-stone-300'
+                            }`}>
+                                {/* Wording changed: removed "/ KG" */}
+                                ${transitionCost.toFixed(2)}
+                            </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 </div>

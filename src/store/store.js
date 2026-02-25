@@ -30,7 +30,7 @@ export const useStore = create((set) => ({
         execute(`
           SELECT c.*, cl.name as client_name 
           FROM contracts c
-          JOIN clients cl ON c.client_id = cl.id
+          LEFT JOIN clients cl ON c.client_id = cl.id
         `),
         execute("SELECT * FROM bag_milestones"),
         execute("SELECT * FROM cost_ledger"),

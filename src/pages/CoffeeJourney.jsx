@@ -12,54 +12,62 @@ const CoffeeJourney = () => {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const advanceStage = useAdvanceStage();
 
-  // Memoized Logic for "God View" averages
+  // 1. Enriched Logic: Join Variety & Calculate Per-KG Costs
   const { contractBags, metrics, currentStage, nextStage } = useMemo(() => {
-    const bags = coffees.filter(b => b.contract_id === selectedContractId);
+    // Filter bags for this contract and attach variety from the lots table
+    const bags = coffees
+      .filter(b => b.contract_id === selectedContractId)
+      .map(b => ({
+        ...b,
+        variety: lots.find(l => l.id === b.lot_id)?.variety || 'Unknown'
+      }));
+
     const relevantMilestones = milestones.filter(m => bags.some(b => b.id === m.bag_id));
     
-    if (relevantMilestones.length === 0) {
+    if (relevantMilestones.length === 0 || bags.length === 0) {
       return { contractBags: bags, metrics: null, currentStage: 'Farm', nextStage: 'Cora' };
     }
 
+    // Weight calculation for lump-sum division
+    const totalContractWeight = bags.reduce((sum, b) => sum + (parseFloat(b.weight_kg) || 69.0), 0) || 1;
     const count = relevantMilestones.length;
-    const avg = (key) => relevantMilestones.reduce((sum, m) => sum + (m[key] || 0), 0) / count;
+    const getLumpSum = (key) => relevantMilestones.reduce((sum, m) => sum + (parseFloat(m[key]) || 0), 0) / count;
 
-    // Calculate average farm cost and ledger overhead from lots
+    // Calculate Farm + Ledger (Already Per-KG)
     let totalFarmCost = 0;
     let totalLedgerOverhead = 0;
     
     bags.forEach(b => {
       const lot = lots.find(l => l.id === b.lot_id);
       if (lot) {
-        totalFarmCost += lot.base_farm_cost_per_kg;
+        totalFarmCost += parseFloat(lot.base_farm_cost_per_kg) || 0;
         const lotLedger = ledger.filter(led => led.lot_id === lot.id);
-        const ledgerSum = lotLedger.reduce((sum, item) => sum + item.amount_usd, 0);
-        totalLedgerOverhead += (ledgerSum / (lot.total_weight_kg || 1));
+        const ledgerSum = lotLedger.reduce((sum, item) => sum + parseFloat(item.amount_usd || 0), 0);
+        totalLedgerOverhead += (ledgerSum / (parseFloat(lot.total_weight_kg) || 1));
       }
     });
 
-    const avgFarmCost = bags.length > 0 ? totalFarmCost / bags.length : 0;
-    const avgLedgerOverhead = bags.length > 0 ? totalLedgerOverhead / bags.length : 0;
+    const avgFarmPlusLedger = (totalFarmCost + totalLedgerOverhead) / bags.length;
 
-    const data = {
-      current_stage: relevantMilestones[0].current_stage,
-      final_price: avg('final_sale_price'),
-      farm_cost: avgFarmCost + avgLedgerOverhead,
-      logistics: ['cost_to_warehouse', 'cost_to_export', 'cost_to_import', 'cost_to_client']
-                 .reduce((sum, key) => sum + avg(key), 0),
-      raw_data: {
-        cost_to_warehouse: avg('cost_to_warehouse'),
-        cost_to_export: avg('cost_to_export'),
-        cost_to_import: avg('cost_to_import'),
-        cost_to_client: avg('cost_to_client')
-      }
+    const logisticsCosts = {
+      cost_to_warehouse: getLumpSum('cost_to_warehouse') / totalContractWeight,
+      cost_to_export: getLumpSum('cost_to_export') / totalContractWeight,
+      cost_to_import: getLumpSum('cost_to_import') / totalContractWeight,
+      cost_to_client: getLumpSum('cost_to_client') / totalContractWeight
     };
+
+    const totalLogisticsPerKg = Object.values(logisticsCosts).reduce((sum, val) => sum + val, 0);
 
     return {
       contractBags: bags,
-      metrics: data,
-      currentStage: data.current_stage,
-      nextStage: getNextStage(data.current_stage)
+      metrics: {
+        total_landed: avgFarmPlusLedger + totalLogisticsPerKg,
+        farm_cost: avgFarmPlusLedger,
+        ops_cost: totalLogisticsPerKg,
+        raw_data: logisticsCosts
+      },
+      currentStage: relevantMilestones[0].current_stage,
+      nextStage: getNextStage(relevantMilestones[0].current_stage)
     };
   }, [coffees, milestones, lots, ledger, selectedContractId]);
 
@@ -69,11 +77,8 @@ const CoffeeJourney = () => {
     try {
       await advanceStage(selectedContractId, parseFloat(costInput) || 0);
       setCostInput('');
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setIsAdvancing(false);
-    }
+    } catch (e) { alert(e.message); } 
+    finally { setIsAdvancing(false); }
   };
 
   return (
@@ -88,7 +93,7 @@ const CoffeeJourney = () => {
 
           <div className="p-8 space-y-8">
             <select 
-              className="w-full bg-stone-100 border-none rounded-xl p-4 text-sm font-bold"
+              className="w-full bg-stone-100 border-none rounded-xl p-4 text-sm font-bold outline-none"
               value={selectedContractId}
               onChange={(e) => setSelectedContractId(e.target.value)}
             >
@@ -97,24 +102,51 @@ const CoffeeJourney = () => {
             </select>
 
             {selectedContractId && (
-              <div className="space-y-6 animate-in fade-in duration-700">
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                {/* Status Card */}
                 <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                  <span className="text-[10px] uppercase font-black text-emerald-800">Status</span>
+                  <span className="text-[10px] uppercase font-black text-emerald-800 tracking-widest">Status</span>
                   <span className="text-xs font-bold text-emerald-900">{currentStage}</span>
                 </div>
 
+                {/* Contract Details Section */}
+                <div className="bg-stone-50 p-5 rounded-2xl border border-stone-100 space-y-4">
+                  <div className="flex justify-between items-center border-b border-stone-200 pb-3">
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">Sale Price</span>
+                    <span className="text-sm font-black text-zinc-900">
+                      ${(contracts.find(c => c.id === selectedContractId)?.sale_price_per_kg || 0).toFixed(2)}
+                      <span className="text-[10px] text-stone-400 font-medium ml-1">/KG</span>
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest block">Varieties</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...new Set(contractBags.map(b => b.variety))].map(v => (
+                        <span key={v} className="bg-white px-2.5 py-1 rounded-lg text-[10px] font-bold text-zinc-600 border border-stone-200 shadow-sm">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logistics Input */}
                 {nextStage && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pt-2">
                     <label className="text-[10px] uppercase font-black text-stone-400">Add Logistics Cost (${nextStage})</label>
-                    <input 
-                      type="number" step="0.01" value={costInput}
-                      className="w-full bg-stone-50 border border-stone-200 rounded-xl p-4"
-                      placeholder="0.00 USD"
-                      onChange={e => setCostInput(e.target.value)}
-                    />
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
+                      <input 
+                        type="number" step="0.01" value={costInput}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-xl p-4 pl-8 font-mono font-bold outline-none"
+                        placeholder="0.00"
+                        onChange={e => setCostInput(e.target.value)}
+                      />
+                    </div>
                     <button 
                       onClick={handleAdvance} disabled={isAdvancing}
-                      className="w-full bg-emerald-600 text-white font-bold p-4 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+                      className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
                     >
                       {isAdvancing ? 'Processing...' : `Move to ${nextStage}`}
                     </button>
@@ -128,7 +160,7 @@ const CoffeeJourney = () => {
           <div className="bg-zinc-950 p-8 text-white">
             <p className="text-[9px] uppercase tracking-widest text-stone-500 mb-2">Total Landed Value (Avg/KG)</p>
             <div className="text-5xl font-mono font-bold text-emerald-400 tracking-tighter">
-              ${(metrics?.final_price || 0).toFixed(2)}
+              ${(metrics?.total_landed || 0).toFixed(2)}
             </div>
             <div className="flex justify-between mt-4 pt-4 border-t border-zinc-800 text-[10px] uppercase font-bold text-stone-500">
               <span>Farm + Ledger: ${(metrics?.farm_cost || 0).toFixed(2)}</span>
