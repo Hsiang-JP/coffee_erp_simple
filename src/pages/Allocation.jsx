@@ -3,7 +3,6 @@ import { allocateBags } from '../utils/allocation';
 import { useStore } from '../store/store';
 import { finalizeAllocation } from '../db/services/allocationService';
 import { getInventory, getClients, applyGravity } from '../db/services/inventoryService';
-import gsap from 'gsap';
 
 const Allocation = () => {
   const { lots, refreshTrigger, fetchAll } = useStore();
@@ -14,7 +13,7 @@ const Allocation = () => {
   const [loading, setLoading] = useState(false);
   const [hoveredBag, setHoveredBag] = useState(null);
   
-  // The Allocation Results State (Now manually controlled)
+  // The Allocation Results State
   const [results, setResults] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -27,13 +26,6 @@ const Allocation = () => {
     clientId: '', 
     salePrice: '' 
   });
-
-  // Trigger GSAP animation when results change
-  useEffect(() => {
-    if (results.length > 0) {
-      gsap.fromTo(".bag-square-selected", { scale: 0.8 }, { scale: 1.1, duration: 0.4, stagger: 0.05 });
-    }
-  }, [results]);
 
   // Map the warehouse grid visually based on current inventory
   const stockCodeMap = useMemo(() => {
@@ -60,7 +52,6 @@ const Allocation = () => {
     }
   };
 
-  // Background sync for when the component mounts or other pages modify data
   const loadInventory = async () => {
     setLoading(true);
     try {
@@ -73,35 +64,27 @@ const Allocation = () => {
     }
   };
 
-  // Hydrate data on mount and when the global refresh trigger fires
   useEffect(() => { 
     loadInventory(); 
     loadClients(); 
   }, [refreshTrigger]);
 
-  // --- Imperative Click Handler ---
-  // This ONLY runs the algorithm when the user explicitly clicks the button.
   const handleFindOptions = async () => {
     setLoading(true);
     try {
-      // 1. Get the absolute latest inventory from SQLite to ensure we don't double-book
       const data = await getInventory();
       setInventory(data); 
       
-      // 2. Isolate available bags
       const availablePool = data.filter(b => b.status === 'Available');
       
-      // 3. Run the algorithm based on the CURRENT inputs
       const generatedOptions = allocateBags({ 
         ...reqs, 
         minScore: parseFloat(reqs.minScore) 
       }, availablePool);
       
-      // 4. Set the results to the UI
       setResults(generatedOptions);
-      setSelectedIndex(0); // Reset selection to the top option
+      setSelectedIndex(0); 
       
-      // 5. Alert if nothing matches
       if (generatedOptions.length === 0) {
         alert("No allocation options found. Please adjust your criteria (e.g., lower the Min Quality Score or clear the Variety filter).");
       }
@@ -118,7 +101,6 @@ const Allocation = () => {
       const movedCount = await applyGravity(inventory);
       if (movedCount > 0) {
         await loadInventory();
-        // Clear results since bags moved physically
         setResults([]); 
       } else {
         alert("Shelves are already consolidated. No floating bags detected.");
@@ -156,10 +138,8 @@ const Allocation = () => {
         
         if (result.success) {
           alert(`Contract Generated! ID: ${result.publicId}\nSale Price: $${result.salePricePerKg.toFixed(2)}/kg`);
-          setResults([]); // Clear the options UI 
-          await loadInventory(); // Updates local allocation grid
-          
-          // Tell the global store to fetch the new contract and milestones!
+          setResults([]); 
+          await loadInventory(); 
           await fetchAll(); 
         }
       } catch (error) {
@@ -181,17 +161,22 @@ const Allocation = () => {
           {levels.map(l => {
             const code = `${p}-${l}`;
             const bag = stockCodeMap.get(code);
-            const isSelected = selectedBags.some(b => b.id === bag?.id);
+            
+            // 🚨 Pure CSS Stagger Logic: Find the exact index of this bag in the selected array
+            const selectedIdx = bag ? selectedBags.findIndex(b => b.id === bag.id) : -1;
+            const isSelected = selectedIdx !== -1;
             const isAllocated = bag?.status === 'Allocated';
             
             return (
               <div key={l} 
-                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ease-bounce relative
-                  ${isSelected ? 'bg-emerald-500 border-emerald-600 scale-110 shadow-xl shadow-emerald-200 z-10 bag-square-selected' : 
+                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 relative
+                  ${isSelected ? 'bg-emerald-500 border-emerald-600 z-10 animate-stagger-pop' : 
                     isAllocated ? 'bg-blue-600 border-blue-800' : 
                     bag ? 'bg-zinc-900 border-zinc-950 hover:bg-black cursor-pointer' : 
                     'bg-stone-50 border-stone-100 opacity-20'}
                 `}
+                // Dynamically apply an animation delay based on its index!
+                style={isSelected ? { animationDelay: `${selectedIdx * 0.05}s`, transform: 'scale(0.8)' } : {}}
                 onMouseEnter={() => bag && setHoveredBag(bag)}
                 onMouseLeave={() => setHoveredBag(null)}
               >
@@ -237,6 +222,19 @@ const Allocation = () => {
   return (
     <div className="flex flex-col lg:flex-row gap-8 p-8 bg-[#F9F7F2] min-h-screen font-sans">
       
+      {/* 🚨 CSS Animations injected directly into the component */}
+      <style>
+        {`
+          @keyframes staggerPop {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 rgba(16,185,129,0); opacity: 0.5; }
+            100% { transform: scale(1.1); box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4), 0 8px 10px -6px rgba(16, 185, 129, 0.3); opacity: 1; }
+          }
+          .animate-stagger-pop {
+            animation: staggerPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          }
+        `}
+      </style>
+
       {/* --- Sidebar UI --- */}
       <aside className="w-full lg:w-96 space-y-6 flex-shrink-0">
         <header className="mb-8">
@@ -358,7 +356,6 @@ const Allocation = () => {
       {/* --- Warehouse Grid --- */}
       <main className="flex-1 bg-white p-12 rounded-[3rem] shadow-sm border border-stone-100 min-w-[700px]">
         
-        {/* --- POSH & SLEEK HEADER & LEGEND --- */}
         <div className="flex justify-between items-center mb-16 border-b border-stone-50 pb-8">
           <div>
             <h2 className="text-2xl font-black italic uppercase tracking-tighter">Warehouse <span className="text-stone-300">Intake</span></h2>
@@ -366,7 +363,6 @@ const Allocation = () => {
           
           <div className="flex items-center gap-6">
             
-            {/* The New Elevated Legend */}
             <div className="flex bg-stone-50 p-1.5 rounded-2xl border border-stone-100 shadow-inner items-center gap-2">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
                 <div className="w-2.5 h-2.5 bg-zinc-900 rounded-full"></div>

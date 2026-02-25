@@ -10,7 +10,7 @@
 - **Frontend:** React (Vite) + TailwindCSS
 - **Database:** `wa-sqlite` (SQLite WASM) running in the browser.
 - **Persistence:** `IDBMinimalVFS` (IndexedDB persistence) — current DB: `green_coffee_erp_v15`.
-- **Animations:** GSAP (State transitions & Warehouse Map).
+- **Animations:** CSS (State transitions & Warehouse Map).
 - **Mapping:** `react-simple-maps` (GeoJSON trade routes).
 - **State Management:** Zustand (Global Store) with auto-refresh triggers.
 

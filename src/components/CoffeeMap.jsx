@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, Line } from "react-simple-maps";
 import { useStore } from '../store/store';
 
+// This is the absolute source of truth for currentIdx
 const STAGE_IDX = {
   'Farm': 0, 'Cora': 1, 'Port-Export': 2, 'Port-Import': 3, 'Final Destination': 4
 };
@@ -66,14 +67,20 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     const coraCoords = getCoords('Cora');
     const exportPortCoords = getCoords('Callao Port');
 
+    // 0. AT THE FARM
     uniqueRegions.forEach(region => {
       const farmCoords = getCoords([region, 'Peru']) || [-77.04, -12.04]; 
-      markers.push({ name: region, coordinates: farmCoords, stage: 0 });
-      lines.push({ from: farmCoords, to: coraCoords, stageIndex: 0 });
+      // Marker: Farm (Appears immediately at index 0)
+      markers.push({ name: region, coordinates: farmCoords, stage: 0 }); 
+      // Line: Farm -> Cora (Draws when moving to index 1)
+      lines.push({ from: farmCoords, to: coraCoords, stageIndex: 1 });
     });
 
+    // 1. AT CORA
+    // Marker: Cora (Appears when index reaches 1)
     markers.push({ name: 'Cora Warehouse', coordinates: coraCoords, stage: 1 });
-    lines.push({ from: coraCoords, to: exportPortCoords, stageIndex: 1 });
+    // Line: Cora -> Export Port (Draws when moving to index 2)
+    lines.push({ from: coraCoords, to: exportPortCoords, stageIndex: 2 });
 
     let destCoords = [139.77, 35.62]; 
     let finalCoords = [139.97, 35.82]; 
@@ -95,11 +102,21 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
       }
     }
 
-    markers.push({ name: 'Export Port', coordinates: destCoords, stage: 2 });
-    lines.push({ from: exportPortCoords, to: destCoords, stageIndex: 2 });
+    // 2. AT EXPORT PORT
+    // Marker: Callao (Appears when index reaches 2)
+    markers.push({ name: 'Export Port', coordinates: exportPortCoords, stage: 2 });
+    // Line: Callao -> Taiwan (Draws when moving across ocean to index 3)
+    lines.push({ from: exportPortCoords, to: destCoords, stageIndex: 3 });
 
+    // 3. AT IMPORT PORT
+    // Marker: Taiwan Port (Appears when index reaches 3)
+    markers.push({ name: 'Import Port', coordinates: destCoords, stage: 3 });
+    // Line: Taiwan Port -> Final Roastery (Draws when moving to index 4)
+    lines.push({ from: destCoords, to: finalCoords, stageIndex: 4 });
+
+    // 4. AT FINAL DESTINATION
+    // Marker: Roastery (Appears when index reaches 4)
     markers.push({ name: 'Final Roastery', coordinates: finalCoords, stage: 4 });
-    lines.push({ from: destCoords, to: finalCoords, stageIndex: 3 });
 
     return { lines, markers };
   }, [bags, contractId, farms, contracts, clients, lots, locations]);
@@ -135,8 +152,9 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
         </Geographies>
         
         {network.lines.map((line, i) => {
-          // 🚨 THE FIX: Do not draw any lines that belong to future stages!
-          if (line.stageIndex >= currentIdx) return null;
+          // A line should ONLY render if the current stage is greater than or equal to the line's designated stage.
+          // Example: The ocean line (stageIndex 3) will only draw when currentIdx is 3 (Port-Import) or 4 (Final).
+          if (currentIdx < line.stageIndex) return null;
 
           return (
             <Line
@@ -151,14 +169,12 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
         })}
 
         {network.markers.map((marker, i) => {
-          // 🚨 THE FIX: Do not draw any destination dots until the coffee arrives!
           if (marker.stage > currentIdx) return null;
 
           const isCurrent = marker.stage === currentIdx;
 
           return (
             <Marker key={`marker-${i}`} coordinates={marker.coordinates}>
-              {/* Pulsing Aura - Only on the active, current location */}
               {isCurrent && (
                 <circle r="4" fill="#10b981">
                   <animate attributeName="r" begin="0s" dur="1.5s" values="4; 16" repeatCount="indefinite" />
@@ -166,7 +182,6 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
                 </circle>
               )}
               
-              {/* Every node reached so far gets a solid green dot */}
               <circle 
                 r={isCurrent ? 6 : 4} 
                 fill="#10b981" 

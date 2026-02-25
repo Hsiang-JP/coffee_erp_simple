@@ -8,10 +8,10 @@ When this file is referenced, you must temporarily assume the combined personas 
 ### RULE 1: STRICT REACT ARCHITECTURE (SNAPPY & CLEAN)
 * **Separation of Concerns:** UI components must *only* render UI. All SQLite data-fetching, complex calculations, and Zustand store subscriptions must be abstracted into custom hooks (e.g., `useCuppingData.js`, `useAllocationLogic.js`).
 * **Prop-Drilling is Forbidden:** If state is passed down more than two levels, move it to the Zustand store.
-* **Performance:** Use early returns for `Loading...` and `Empty` states. Wrap expensive calculations in `useMemo` and GSAP/DOM refs in `useRef`.
+* **Performance:** Use early returns for `Loading...` and `Empty` states. Wrap expensive calculations in `useMemo` and refs in `useRef`.
 
 ### RULE 2: CENTRALIZED & MODERN CSS (TAILWIND)
-* **No Inline Styles:** Absolutely no `style={{...}}` allowed in the JSX, with the *only* exception being dynamic coordinate calculations for GSAP/SVG map positioning.
+* **No Inline Styles:** Absolutely no `style={{...}}` allowed in the JSX, with the *only* exception being dynamic coordinate calculations for SVG map positioning.
 * **Utility Consistency:** Do not write custom CSS classes in standard `.css` files unless completely unavoidable. Rely 100% on Tailwind utility classes.
 * **Theme Variables:** Colors, fonts, and border radii must map to a central `tailwind.config.js`.
 
@@ -28,7 +28,6 @@ When this file is referenced, you must temporarily assume the combined personas 
 
 ### RULE 4: MICRO-INTERACTIONS & KINETICS
 * **Tactile Feedback:** Every clickable card or button must have a subtle transition. Use Tailwind: `transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-stone-200`.
-* **GSAP Hand-offs:** Ensure DOM elements intended for GSAP animations have clear `id` or `ref` tags, and ensure they are removed from standard React re-render cycles if GSAP is controlling their positioning.
 
 ## 🛠 REQUIRED ACTION
 Review the requested component. Strip out generic UI patterns, remove inline styles, extract logic to hooks, and apply the Bento Box / Editorial design language outlined above. Output the refactored code.
