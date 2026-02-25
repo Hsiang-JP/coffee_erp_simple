@@ -42,7 +42,6 @@ const EditableCell = ({ tableName, id, column, value, type = 'text', options = [
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSave();
     if (e.key === 'Escape') {
       setCurrentValue(value);
       setEditing(false);

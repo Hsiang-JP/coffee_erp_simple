@@ -70,5 +70,4 @@ The system is designed with the Database as the absolute source of truth. Logic 
 
 ## 5. CRITICAL CAVEATS FOR FUTURE AGENTS
 1. **Naming Confusion:** Currently, the DB field `final_sale_price` often stores **Total Accumulated Cost**. Exercise caution when building financial reports.
-2. **Margin Bug:** The `finalizeAllocation` service currently defaults the sale price to the internal cost. The `MarketerAgent` in the stress test suite provides a manual override pattern.
-3. **Database Locks:** React Strict Mode or multiple tabs can cause `disk I/O errors`. The `dbSetup.js` includes a singleton promise and retry logic to mitigate this.
+2. **Database Locks:** React Strict Mode or multiple tabs can cause `disk I/O errors`. The `dbSetup.js` includes a singleton promise and retry logic to mitigate this.

@@ -28,6 +28,27 @@ function App() {
     }
   }, [refreshTrigger, bootState, fetchAll]);
 
+  // Disable "Enter" globally for form inputs and buttons
+  useEffect(() => {
+    const handleEnterDisable = (e) => {
+      if (e.key === 'Enter') {
+        const target = e.target;
+        const tagName = target.tagName.toLowerCase();
+        
+        // Disable Enter for inputs, selects, textareas (stops form submit)
+        // and buttons (stops click trigger)
+        if (['input', 'select', 'textarea', 'button'].includes(tagName)) {
+          e.preventDefault();
+          // Optionally stop propagation to ensure no other listeners catch it
+          e.stopPropagation();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleEnterDisable, true); // Use capture phase
+    return () => window.removeEventListener('keydown', handleEnterDisable, true);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 

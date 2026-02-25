@@ -294,8 +294,56 @@ export async function updateCell(tableName, id, column, newValue) {
 
 export async function deleteRow(tableName, id) {
   if (!db) await initDB();
-  if (tableName === 'bags') await execute(`DELETE FROM bag_milestones WHERE bag_id = ?`, [id]);
-  await execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
+
+  await wrapInTransaction(async () => {
+    // Disable foreign keys temporarily for the cleanup operation
+    await execute("PRAGMA foreign_keys = OFF;");
+
+    if (tableName === 'producers') {
+      // Producer -> Farms -> Lots -> (Bags, Ledger, Cupping) -> Milestones
+      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?)))`, [id]);
+      await execute(`DELETE FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
+      await execute(`DELETE FROM cost_ledger WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
+      await execute(`DELETE FROM cupping_sessions WHERE lot_id IN (SELECT id FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?))`, [id]);
+      await execute(`DELETE FROM lots WHERE farm_id IN (SELECT id FROM farms WHERE producer_id = ?)`, [id]);
+      await execute(`DELETE FROM farms WHERE producer_id = ?`, [id]);
+    } 
+    else if (tableName === 'farms') {
+      // Farm -> Lots -> (Bags, Ledger, Cupping) -> Milestones
+      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?))`, [id]);
+      await execute(`DELETE FROM bags WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
+      await execute(`DELETE FROM cost_ledger WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
+      await execute(`DELETE FROM cupping_sessions WHERE lot_id IN (SELECT id FROM lots WHERE farm_id = ?)`, [id]);
+      await execute(`DELETE FROM lots WHERE farm_id = ?`, [id]);
+    }
+    else if (tableName === 'lots') {
+      // Lot -> (Bags, Ledger, Cupping) -> Milestones
+      await execute(`DELETE FROM bag_milestones WHERE bag_id IN (SELECT id FROM bags WHERE lot_id = ?)`, [id]);
+      await execute(`DELETE FROM bags WHERE lot_id = ?`, [id]);
+      await execute(`DELETE FROM cost_ledger WHERE lot_id = ?`, [id]);
+      await execute(`DELETE FROM cupping_sessions WHERE lot_id = ?`, [id]);
+    }
+    else if (tableName === 'bags') {
+      await execute(`DELETE FROM bag_milestones WHERE bag_id = ?`, [id]);
+    }
+    else if (tableName === 'clients') {
+      // Client -> Contracts. Note: Bags are UNALLOCATED (contract_id set to NULL) rather than deleted.
+      await execute(`UPDATE bag_milestones SET contract_id = NULL WHERE contract_id IN (SELECT id FROM contracts WHERE client_id = ?)`, [id]);
+      await execute(`UPDATE bags SET contract_id = NULL, status = 'Available' WHERE contract_id IN (SELECT id FROM contracts WHERE client_id = ?)`, [id]);
+      await execute(`DELETE FROM contracts WHERE client_id = ?`, [id]);
+    }
+    else if (tableName === 'contracts') {
+      // Contract -> Unallocate Bags
+      await execute(`UPDATE bag_milestones SET contract_id = NULL WHERE contract_id = ?`, [id]);
+      await execute(`UPDATE bags SET contract_id = NULL, status = 'Available' WHERE contract_id = ?`, [id]);
+    }
+
+    // Finally delete the target row itself
+    await execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
+    
+    // Re-enable foreign keys
+    await execute("PRAGMA foreign_keys = ON;");
+  });
 }
 
 export async function exportDatabase() {

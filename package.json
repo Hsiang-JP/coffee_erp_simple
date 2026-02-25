@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "math:validate": "node scripts/validate_math.cjs",
+    "math:compare": "node scripts/compare_math.cjs",
     "postinstall": "mkdir -p public && cp node_modules/wa-sqlite/dist/wa-sqlite.wasm public/ && cp node_modules/wa-sqlite/dist/wa-sqlite-async.wasm public/"
   },
   "dependencies": {
