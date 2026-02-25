@@ -9,7 +9,7 @@ const Allocation = () => {
   const { lots, cuppingReports, refreshTrigger } = useStore();
   const [inventory, setInventory] = useState([]);
   // ADDED: salePrice to state
-  const [reqs, setReqs] = useState({ minScore: 82, requiredWeight: 276, variety: '', flavorNote: '', clientId: '', salePrice: '' });
+  const [reqs, setReqs] = useState({ minScore: 80, requiredWeight: 276, variety: '', flavorNote: '', clientId: '', salePrice: '' });
   const [results, setResults] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -223,7 +223,13 @@ const Allocation = () => {
             <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Agreed Sale Price ($/kg)</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
-              <input type="number" step="0.01" value={reqs.salePrice} placeholder="0.00" 
+              <input 
+                type="number" 
+                step="0.01" 
+                min="0.01"      // <--- Prevents negative numbers or zero
+                required        // <--- Browser-level NOT NULL check
+                value={reqs.salePrice} 
+                placeholder="0.00" 
                 className="w-full p-4 pl-8 bg-stone-50 rounded-2xl outline-none font-bold font-mono text-sm"
                 onChange={e => setReqs({...reqs, salePrice: e.target.value})}/>
             </div>
