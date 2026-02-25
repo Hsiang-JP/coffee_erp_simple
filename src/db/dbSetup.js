@@ -81,9 +81,10 @@ export async function wrapInTransaction(callback) {
 
 /**
  * Internal Raw Execution (Bypasses Queue)
- * Only use during initialization or within existing queue blocks
+ * Includes a safety mechanism for Disk I/O errors with retries.
  */
-async function executeRaw(sql, bind = []) {
+async function executeRaw(sql, bind = [], retryCount = 0) {
+  const MAX_RETRIES = 3;
   let stmt = null;
   let str = null;
 
@@ -127,6 +128,14 @@ async function executeRaw(sql, bind = []) {
     }
     return results;
   } catch (e) {
+    // Safety Mechanism: Handle Disk I/O errors with exponential backoff
+    if (e.message.includes('disk I/O error') && retryCount < MAX_RETRIES) {
+      const delay = Math.pow(2, retryCount) * 100;
+      console.warn(`⚠️ Disk I/O Error. Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return await executeRaw(sql, bind, retryCount + 1);
+    }
+
     if (e.name === 'SQLiteError' && e.message === 'not an error') {
         return [];
     }
@@ -137,45 +146,38 @@ async function executeRaw(sql, bind = []) {
   }
 }
 
-export function initDB() {
-  // 1. Singleton Lock: Prevent multiple initialization attempts
+export async function initDB() {
   if (dbInitPromise) return dbInitPromise;
 
   dbInitPromise = (async () => {
     try {
       console.log('🏗 Initializing Persistent DB...');
-      const module = await SQLiteESMFactory({
-        locateFile: (file) => `/${file}`
-      });
-      
+      const module = await SQLiteESMFactory({ locateFile: (f) => `/${f}` });
       sqlite3 = SQLite.Factory(module);
-      const vfs = new IDBMinimalVFS(DB_NAME);
+      
+      // Use a unique VFS name to avoid collisions with old versions
+      const vfs = new IDBMinimalVFS(DB_NAME); 
       sqlite3.vfs_register(vfs, true);
 
-      // 2. Open Connection with URI support for better locking
+      // Open with specific flags for browser-based concurrency
       db = await sqlite3.open_v2(
         DB_NAME,
         SQLite.SQLITE_OPEN_READWRITE | SQLite.SQLITE_OPEN_CREATE | SQLite.SQLITE_OPEN_URI,
         vfs.name
       );
 
-      // 3. DB-First Synchronization
       await alignSchema();
       await seedDataInternal();
       
       console.log('🚀 DB Ready');
       return db;
     } catch (err) {
-      console.error("❌ Failed to init DB:", err);
+      dbInitPromise = null; // Allow retry after failure
       
-      // 4. Reset promise so the next attempt can retry
-      dbInitPromise = null; 
-
-      // 5. I/O Error Handling: If the disk is locked, we must notify the user to refresh
       if (err.message.includes('disk I/O error')) {
-        console.warn("🚨 Database Lock Detected. This is likely due to multiple tabs or React Strict Mode.");
+        console.error("🚨 DISK LOCK: I/O Error detected. IndexedDB is locked by another thread.");
+        // Redirect to a specialized repair page if this happens during the pitch
       }
-      
       throw err;
     }
   })();

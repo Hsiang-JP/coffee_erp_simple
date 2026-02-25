@@ -22,10 +22,17 @@ const Allocation = () => {
     return new Map(inventory.map(bag => [bag.stock_code, bag]));
   }, [inventory]);
 
-  // DB-First Fetch: Use the View for pre-enriched data
+  // DB-First Fetch: Use a broader query for the map, but filter Available for optimization
   const loadInventory = async () => {
     setLoading(true);
-    const data = await execute(`SELECT * FROM available_inventory_optimization`);
+    // Fetch all bags with lot and cupping info for the map
+    const data = await execute(`
+      SELECT b.*, l.variety, l.process_method, f.name as farm_name,
+      COALESCE((SELECT AVG(total_score) FROM cupping_sessions WHERE lot_id = b.lot_id), 80.0) AS quality_score
+      FROM bags b
+      JOIN lots l ON b.lot_id = l.id
+      JOIN farms f ON l.farm_id = f.id
+    `);
     setInventory(data);
     setLoading(false);
   };
@@ -46,16 +53,17 @@ const Allocation = () => {
   }, [lots, cuppingReports]);
 
   const handleRun = () => {
-    let filteredInventory = inventory;
+    // Only Available bags go into the optimizer
+    let pool = inventory.filter(b => b.status === 'Available');
 
     if (reqs.variety) {
-      filteredInventory = filteredInventory.filter(bag => bag.variety === reqs.variety);
+      pool = pool.filter(bag => bag.variety === reqs.variety);
     }
     if (reqs.flavorNote) {
-      filteredInventory = filteredInventory.filter(bag => bag.primary_flavor_note && bag.primary_flavor_note.toLowerCase().includes(reqs.flavorNote.toLowerCase()));
+      pool = pool.filter(bag => bag.primary_flavor_note && bag.primary_flavor_note.toLowerCase().includes(reqs.flavorNote.toLowerCase()));
     }
 
-    const options = allocateBags(reqs, filteredInventory);
+    const options = allocateBags(reqs, pool);
     setResults(options);
     if (options.length > 0) {
       gsap.fromTo(".bag-square-selected", 
@@ -83,7 +91,7 @@ const Allocation = () => {
         };
         const result = await finalizeAllocation(reqs.clientId, selectedBags, contractDetails);
         if (result.success) {
-          alert(`Reservation finalized! Contract ID: ${result.publicId}, Sale Price: $${result.salePricePerKg.toFixed(2)}/kg`);
+          alert(`Successful: Reservation finalized! Contract ID: ${result.publicId}, Sale Price: $${result.salePricePerKg.toFixed(2)}/kg`);
           loadInventory(); // Reload inventory to reflect allocated bags
           // GSAP animation for allocated bags - will be handled by re-render with updated inventory
         } else {
@@ -99,7 +107,12 @@ const Allocation = () => {
     }
   };
 
-  const palettes = ['AA', 'AB', 'AC', 'AD', 'AE', 'AF'];
+  const palettes = useMemo(() => {
+    const fromInventory = [...new Set(inventory.map(b => b.stock_code?.split('-')[0]))].filter(Boolean);
+    const defaults = ['AA', 'AB', 'AC', 'AD', 'AE', 'AF'];
+    return [...new Set([...defaults, ...fromInventory])].sort();
+  }, [inventory]);
+
   const levels = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
   const selectedBags = results[selectedIndex]?.bags || [];

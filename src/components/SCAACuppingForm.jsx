@@ -104,7 +104,7 @@ const SCAACuppingForm = () => {
       scores.total, scores.final, formData.notes, formData.primary_flavor_note
     ]);
 
-    alert("Scoresheet Synchronized.");
+    alert("Successful: Scoresheet Synchronized.");
     triggerRefresh();
   };
 

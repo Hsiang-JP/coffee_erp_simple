@@ -5,88 +5,81 @@ import { advanceContractStage } from '../db/services/contractService';
 
 export async function runSimulation() {
   console.log("🚀 Starting Full Simulation...");
+  const report = {
+    producers: [],
+    farms: [],
+    lots: [],
+    clients: [],
+    contracts: [],
+    improvements: []
+  };
+
   try {
     await wrapInTransaction(async () => {
-      // 1. Reset Data (Optional, but good for clean slate)
-      // We assume the user has clicked "Delete All" if they want a fresh start, 
-      // but let's just add new data on top to simulate ongoing operations.
-      
-      // 2. Create Actors
+      // 1. Actors
       const producerId = `prod-sim-${Date.now()}`;
       await execute("INSERT INTO producers (id, name, relationship) VALUES (?, ?, ?)", [producerId, "Finca Simulation", "Direct Trade"]);
+      report.producers.push("Finca Simulation");
       
       const farmId = `farm-sim-${Date.now()}`;
       await execute("INSERT INTO farms (id, producer_id, name, region, altitude_meters, location, certification) VALUES (?, ?, ?, ?, ?, ?, ?)", 
         [farmId, producerId, "La Sim", "Cusco", 1850, "Santa Teresa", "Organic"]);
+      report.farms.push("La Sim");
 
       const clientIds = [`cli-sim-A-${Date.now()}`, `cli-sim-B-${Date.now()}`, `cli-sim-C-${Date.now()}`];
-      await execute("INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)", [clientIds[0], "Sim Client A", "VIP", "Japan", "Yokohama", "Tokyo"]);
-      await execute("INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)", [clientIds[1], "Sim Client B", "International", "USA", "Oakland", "Seattle"]);
-      await execute("INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)", [clientIds[2], "Sim Client C", "National", "Peru", "Callao", "Lima"]);
+      const clientNames = ["Sim Client A", "Sim Client B", "Sim Client C"];
+      for (let i=0; i<3; i++) {
+        await execute("INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)", 
+          [clientIds[i], clientNames[i], i === 0 ? "VIP" : "International", "Simulation", "SimPort", "SimCity"]);
+        report.clients.push(clientNames[i]);
+      }
 
-      // 3. Buy Lots (Intake)
+      // 2. Buy Lots
       const varieties = ['Geisha', 'Caturra', 'Typica'];
-      const lots = [];
       for (const v of varieties) {
         const res = await buyLotTransaction({
           farm_id: farmId,
           variety: v,
           process_method: "Washed",
-          total_weight_kg: 300 + Math.random() * 200, // Random weight between 300-500kg
-          base_farm_cost_per_kg: 8.0 + Math.random() * 4 // Random price
+          total_weight_kg: 400,
+          base_farm_cost_per_kg: 10.0
         });
-        lots.push(res); // Contains lotPublicId, numBags (but not the bag IDs directly easily, we need to query)
-        // Add Cupping Score to make them "Available" for high quality filters
-        // Need lot_id. buyLotTransaction returns lotPublicId but we generated lotId inside.
-        // Wait, buyLotTransaction only returns { success: true, lotPublicId, numBags }. 
-        // I need the internal ID to insert cupping session.
-        // Let's modify buyLotTransaction return or query it.
-        // Querying is safer.
+        report.lots.push({ variety: v, bags: res.numBags });
       }
 
-      // Hack: We need the lot IDs to add cupping scores.
+      // 3. Cupping (Must exist for Available view)
       const dbLots = await execute("SELECT * FROM lots WHERE farm_id = ?", [farmId]);
-      
       for (const lot of dbLots) {
         await execute(`INSERT INTO cupping_sessions (id, public_id, lot_id, cupper_name, cupping_date, total_score, final_score, primary_flavor_note) 
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-          [`cup-${lot.id}`, `QC-${lot.public_id}`, lot.id, "Sim Cupper", new Date().toISOString(), 88.5, 88.5, "Simulation Note"]);
+          [`cup-${lot.id}`, `QC-${lot.public_id}`, lot.id, "Sim Cupper", new Date().toISOString(), 88.5, 88.5, "Clean & Bright"]);
       }
 
-      // 4. Create Contracts (Allocation)
-      // We need available bags.
-      const availableBags = await execute("SELECT * FROM bags WHERE status = 'Available'");
+      // 4. Contracts
+      const availableBags = await execute("SELECT id, lot_id, weight_kg FROM bags WHERE status = 'Available'");
       
-      // Contract A: 2 bags
-      if (availableBags.length >= 2) {
-        const bagsA = availableBags.slice(0, 2);
-        const resA = await finalizeAllocation(clientIds[0], bagsA, {});
-        console.log("Contract A created:", resA.publicId);
-        
-        // Advance Contract A to "Final Destination"
-        await advanceContractStage(resA.contractId, 50); // Cora -> Export
-        await advanceContractStage(resA.contractId, 150); // Export -> Import
-        await advanceContractStage(resA.contractId, 100); // Import -> Final
-      }
+      // Contract A: 2 bags -> Final Destination
+      const resA = await finalizeAllocation(clientIds[0], availableBags.slice(0, 2), { required_quality_score: 85 });
+      await advanceContractStage(resA.contractId, 50); // Cora -> Export
+      await advanceContractStage(resA.contractId, 150); // Export -> Import
+      await advanceContractStage(resA.contractId, 100); // Import -> Final
+      report.contracts.push({ id: resA.publicId, client: "Sim Client A", stage: "Final Destination" });
 
-      // Contract B: 3 bags (if available)
-      if (availableBags.length >= 5) {
-        const bagsB = availableBags.slice(2, 5);
-        const resB = await finalizeAllocation(clientIds[1], bagsB, {});
-        console.log("Contract B created:", resB.publicId);
-        // Leave B at "Processing" (or move partially)
-        await advanceContractStage(resB.contractId, 60); // Cora -> Export
-      }
+      // Contract B: 3 bags -> Port-Export
+      const resB = await finalizeAllocation(clientIds[1], availableBags.slice(2, 5), { required_quality_score: 85 });
+      await advanceContractStage(resB.contractId, 60); // Cora -> Export
+      report.contracts.push({ id: resB.publicId, client: "Sim Client B", stage: "Port-Export" });
 
-       // Contract C: 1 bag (if available)
-       if (availableBags.length >= 6) {
-        const bagsC = availableBags.slice(5, 6);
-        const resC = await finalizeAllocation(clientIds[2], bagsC, {});
-        console.log("Contract C created:", resC.publicId);
-      }
+      // Contract C: 1 bag -> Cora
+      const resC = await finalizeAllocation(clientIds[2], availableBags.slice(5, 6), { required_quality_score: 85 });
+      report.contracts.push({ id: resC.publicId, client: "Sim Client C", stage: "Cora" });
 
+      report.improvements.push("Add bulk stage advancement for faster logistics simulation.");
+      report.improvements.push("Automate cupping session creation after lot intake for faster verification.");
     });
-    alert("Simulation Complete! 3 Contracts generated.");
+
+    console.log("📊 SIMULATION REPORT:", JSON.stringify(report, null, 2));
+    alert("Successful: Simulation Complete!\n\nCheck Console for full report.\n3 Contracts generated and staged.");
   } catch (e) {
     alert("Simulation Failed: " + e.message);
     console.error(e);

@@ -38,7 +38,8 @@ export async function buyLotTransaction(lotData) {
     ]);
 
     // 2. Determine stock codes for bags using warehouse utility
-    const lastBag = await execute(`SELECT stock_code FROM bags ORDER BY stock_code DESC LIMIT 1`);
+    // We order by ID to get the literal last bag inserted, ensuring continuous stacking.
+    const lastBag = await execute(`SELECT stock_code FROM bags ORDER BY id DESC LIMIT 1`);
     const lastCode = lastBag.length > 0 ? lastBag[0].stock_code : null;
     const newCodes = generateStockCodes(lastCode, numBags);
 

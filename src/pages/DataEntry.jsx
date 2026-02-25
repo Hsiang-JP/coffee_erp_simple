@@ -16,7 +16,7 @@ const NewProducerForm = () => {
     e.preventDefault();
     if (!name) return;
     await execute('INSERT INTO producers (id, name, relationship) VALUES (?, ?, ?)', [`prod-${Date.now()}`, name, relationship]);
-    alert("Successful");
+    alert("Successful: Producer registered.");
     setName('');
     setRelationship('Other');
     triggerRefresh();
@@ -60,7 +60,7 @@ const NewFarmForm = () => {
       'INSERT INTO farms (id, producer_id, name, region, altitude_meters, location, certification) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [`farm-${Date.now()}`, producerId, name, region, parseFloat(altitude) || null, location, certification]
     );
-    alert("Successful");
+    alert("Successful: Farm registered.");
     setProducerId('');
     setName('');
     setRegion('Other');
@@ -153,7 +153,7 @@ const BuyCoffeeForm = () => {
         total_weight_kg: roundedWeight, // Use the rounded value for DB insertion
         base_farm_cost_per_kg: parseFloat(baseCost),
       });
-      alert("Successful");
+      alert("Successful: Lot intake complete.");
       // Reset form
       setFarmId('');
       setVariety('Other');
@@ -257,7 +257,7 @@ const ClientForm = () => {
       'INSERT INTO clients (id, name, relationship, destination_country, destination_port, destination_city) VALUES (?, ?, ?, ?, ?, ?)',
       [`cli-${Date.now()}`, name, relationship, country, port, city]
     );
-    alert("Successful");
+    alert("Successful: Client registered.");
     setName('');
     setRelationship('Other');
     setCountry('');
