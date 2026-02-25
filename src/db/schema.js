@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS clients (
     relationship TEXT CHECK(relationship IN ('VIP', 'International', 'National', 'Other')),
     destination_country TEXT,
     destination_port TEXT,
-    destination_city TEXT
+    destination_city TEXT NOT NULL
 );
 
 -- ==========================================
@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS lots (
     id TEXT PRIMARY KEY,
     public_id TEXT,
     farm_id TEXT,
-    variety TEXT, 
-    process_method TEXT, 
-    total_weight_kg REAL,
+    variety TEXT NOT NULL, 
+    process_method TEXT NOT NULL, 
+    total_weight_kg REAL NOT NULL,
     harvest_date TEXT,
-    base_farm_cost_per_kg REAL,
+    base_farm_cost_per_kg REAL NOT NULL,
     FOREIGN KEY (farm_id) REFERENCES farms(id) ON DELETE CASCADE
 );
 

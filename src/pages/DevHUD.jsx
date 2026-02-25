@@ -118,8 +118,8 @@ const DataManagement = () => {
         columns: [
             { key: 'name', label: 'Place Name', type: 'text' },
             { key: 'type', label: 'Type', type: 'select', options: ['Farm/Region', 'Warehouse', 'Port', 'Client/City', 'Other'] },
-            { key: 'latitude', label: 'Lat', type: 'number' },
-            { key: 'longitude', label: 'Lon', type: 'number' }
+            { key: 'longitude', label: 'Lon', type: 'number' },
+            { key: 'latitude', label: 'Lat', type: 'number' }
         ]
     }
   };

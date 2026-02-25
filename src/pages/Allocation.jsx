@@ -6,7 +6,7 @@ import { getInventory, getClients, applyGravity } from '../db/services/inventory
 import gsap from 'gsap';
 
 const Allocation = () => {
-  const { lots, refreshTrigger } = useStore();
+  const { lots, refreshTrigger, fetchAll } = useStore();
   
   // Base State
   const [inventory, setInventory] = useState([]);
@@ -21,7 +21,7 @@ const Allocation = () => {
   // The User Inputs
   const [reqs, setReqs] = useState({ 
     minScore: 80, 
-    requiredWeight: 276, 
+    requiredWeight: 69, 
     variety: '', 
     flavorNote: '', 
     clientId: '', 
@@ -79,7 +79,7 @@ const Allocation = () => {
     loadClients(); 
   }, [refreshTrigger]);
 
-  // --- CHANGED: Imperative Click Handler ---
+  // --- Imperative Click Handler ---
   // This ONLY runs the algorithm when the user explicitly clicks the button.
   const handleFindOptions = async () => {
     setLoading(true);
@@ -159,7 +159,7 @@ const Allocation = () => {
           setResults([]); // Clear the options UI 
           await loadInventory(); // Updates local allocation grid
           
-          // 🚨 THE FIX: Tell the global store to fetch the new contract and milestones!
+          // Tell the global store to fetch the new contract and milestones!
           await fetchAll(); 
         }
       } catch (error) {
@@ -357,20 +357,37 @@ const Allocation = () => {
 
       {/* --- Warehouse Grid --- */}
       <main className="flex-1 bg-white p-12 rounded-[3rem] shadow-sm border border-stone-100 min-w-[700px]">
+        
+        {/* --- POSH & SLEEK HEADER & LEGEND --- */}
         <div className="flex justify-between items-center mb-16 border-b border-stone-50 pb-8">
           <div>
             <h2 className="text-2xl font-black italic uppercase tracking-tighter">Warehouse <span className="text-stone-300">Intake</span></h2>
           </div>
+          
           <div className="flex items-center gap-6">
-            <div className="flex gap-4 text-[9px] font-black uppercase tracking-widest text-stone-400">
-               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-zinc-900 rounded-sm"></div> In Stock</span>
-               <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div> Selected</span>
+            
+            {/* The New Elevated Legend */}
+            <div className="flex bg-stone-50 p-1.5 rounded-2xl border border-stone-100 shadow-inner items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
+                <div className="w-2.5 h-2.5 bg-zinc-900 rounded-full"></div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Available</span>
+              </div>
+              
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
+                <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm shadow-emerald-200"></div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Selected</span>
+              </div>
+              
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
+                <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm shadow-blue-200"></div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">Allocated</span>
+              </div>
             </div>
             
             <button 
               onClick={handleApplyGravity} 
               disabled={loading}
-              className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-zinc-900 py-2 px-4 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all active:scale-95"
+              className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-zinc-900 py-2.5 px-4 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all active:scale-95"
             >
               ⬇️ Apply Gravity
             </button>

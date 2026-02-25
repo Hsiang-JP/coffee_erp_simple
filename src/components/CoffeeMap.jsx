@@ -7,7 +7,6 @@ const STAGE_IDX = {
 };
 
 const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = null }) => {
-  // Add default empty arrays to destructuring to prevent 'undefined' errors
   const { 
     farms = [], 
     contracts = [], 
@@ -19,61 +18,60 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
   const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/main/world.json";
   const currentIdx = STAGE_IDX[currentStage] || 0;
 
-  // Helper to find coords with safety checks
   const getCoords = (name) => {
-    // Safety: ensure locations is an array before calling .find
+    if (name === 'Cora') return [-72.6910885632289, -12.849994725082212]; 
+    if (name === 'Callao Port') return [-77.1500, -12.0500];
+
     const loc = Array.isArray(locations) ? locations.find(l => l.name === name) : null;
     if (loc) return [loc.longitude, loc.latitude];
     
-    // Fallbacks
-    if (name?.includes('Peru')) return [-75.01, -9.19];
     if (name?.includes('Japan')) return [138.25, 36.20];
-    return [-77.04, -12.04]; // Default to Lima
+    if (name?.includes('Taiwan')) return [121.4876, 25.0345];
+    if (name?.includes('USA')) return [-122.3321, 47.6062]; 
+    
+    return [-77.04, -12.04]; 
   };
 
   const network = useMemo(() => {
     const lines = [];
     const markers = [];
 
-    // Ensure we have data before running mapping logic
     if (!Array.isArray(bags) || bags.length === 0) {
         return { lines: [], markers: [] };
     }
 
-    // 1. ORIGINS (From Farms -> Cora)
     const uniqueRegions = [...new Set(bags.map(b => {
       const lot = lots?.find(l => l.id === b.lot_id);
       const farm = farms?.find(f => f.id === lot?.farm_id);
       return farm?.region;
     }))].filter(Boolean);
 
-    const coraCoords = getCoords('Cora Warehouse');
+    const coraCoords = getCoords('Cora');
     const exportPortCoords = getCoords('Callao Port');
 
     uniqueRegions.forEach(region => {
-      const farmCoords = getCoords(`${region}, Peru`);
+      const farmCoords = getCoords(region); 
       markers.push({ name: region, coordinates: farmCoords, stage: 0 });
       lines.push({ from: farmCoords, to: coraCoords, stageIndex: 0 });
     });
 
-    // 2. THE TRUNK (Cora -> Export Port)
-    markers.push({ name: 'Warehouse', coordinates: coraCoords, stage: 1 });
+    markers.push({ name: 'Cora Warehouse', coordinates: coraCoords, stage: 1 });
     lines.push({ from: coraCoords, to: exportPortCoords, stageIndex: 1 });
 
-    // 3. THE OCEAN (Export Port -> Client Port)
     let destCoords = [139.77, 35.62]; 
     if (contractId) {
       const contract = contracts?.find(c => c.id === contractId);
       const client = clients?.find(c => c.id === contract?.client_id);
       if (client?.destination_port) {
         destCoords = getCoords(client.destination_port);
+      } else if (client?.destination_city) {
+        destCoords = getCoords(client.destination_city);
       }
     }
 
     markers.push({ name: 'Export Port', coordinates: exportPortCoords, stage: 2 });
     lines.push({ from: exportPortCoords, to: destCoords, stageIndex: 2 });
 
-    // 4. THE LAST MILE (Port -> Final)
     markers.push({ name: 'Import Port', coordinates: destCoords, stage: 3 });
     markers.push({ name: 'Final Roastery', coordinates: [destCoords[0] + 0.2, destCoords[1] + 0.2], stage: 4 });
     lines.push({ from: destCoords, to: [destCoords[0] + 0.2, destCoords[1] + 0.2], stageIndex: 3 });
@@ -81,20 +79,12 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     return { lines, markers };
   }, [bags, contractId, farms, contracts, clients, lots, locations]);
 
-  // If the store is still syncing, show a simple background or loader
   if (!locations || locations.length === 0) {
     return <div className="w-full h-full bg-[#fdfbf7] flex items-center justify-center text-stone-400 text-[10px] uppercase tracking-widest">Initialising Spatial Island...</div>;
   }
 
   return (
     <div className="w-full h-full bg-[#fdfbf7] rounded-xl overflow-hidden relative">
-      <style>
-        {`
-          @keyframes flow { to { stroke-dashoffset: -12; } }
-          .line-active { stroke-dasharray: 6; animation: flow 1.5s linear infinite; }
-        `}
-      </style>
-
       <ComposableMap 
         projection="geoMercator"
         projectionConfig={{ 
@@ -113,50 +103,54 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
                 fill="#ece9e2"
                 stroke="#d6d1c7"
                 strokeWidth={0.5}
-                style={{ default: { outline: "none" } }}
+                style={{ default: { outline: "none" }, hover: { outline: "none" }, pressed: { outline: "none" } }}
               />
             ))
           }
         </Geographies>
         
         {network.lines.map((line, i) => {
-          const isCompleted = currentIdx > line.stageIndex;
-          const isActive = currentIdx === line.stageIndex;
-          const isPending = currentIdx < line.stageIndex;
+          const isCompleted = line.stageIndex < currentIdx;
 
           return (
             <Line
               key={`line-${i}`}
               from={line.from}
               to={line.to}
-              stroke={isCompleted || isActive ? "#10B981" : "#d1d5db"}
-              strokeWidth={isActive ? 3 : 1.5}
+              stroke={isCompleted ? "#10B981" : "#d1d5db"}
+              strokeWidth={isCompleted ? 2.5 : 1.5}
               strokeLinecap="round"
-              className={isActive ? "line-active" : ""}
               style={{
-                strokeDasharray: isPending ? "2 4" : "none",
-                opacity: isPending ? 0.3 : 1,
-                transition: "stroke 0.5s ease"
+                strokeDasharray: isCompleted ? "none" : "4 4",
+                opacity: isCompleted ? 1 : 0.5,
+                transition: "all 0.5s ease-in-out"
               }}
             />
           );
         })}
 
         {network.markers.map((marker, i) => {
-          const isReached = currentIdx >= marker.stage;
-          const isCurrent = currentIdx === marker.stage;
+          const isReached = marker.stage <= currentIdx;
+          const isCurrent = marker.stage === currentIdx;
 
           return (
             <Marker key={`marker-${i}`} coordinates={marker.coordinates}>
-              <circle 
-                r={isCurrent ? 5 : 3} 
-                fill={isReached ? "#059669" : "#fff"} 
-                stroke={isReached ? "#fff" : "#9ca3af"} 
-                strokeWidth={1} 
-              />
+              {/* 🚨 THE FIX: Native SVG Animation placed FIRST so it renders BEHIND the main dot */}
               {isCurrent && (
-                <circle r={12} fill="#10b981" opacity={0.3} className="animate-ping" />
+                <circle r="4" fill="#10b981">
+                  <animate attributeName="r" begin="0s" dur="1.5s" values="4; 16" repeatCount="indefinite" />
+                  <animate attributeName="opacity" begin="0s" dur="1.5s" values="0.6; 0" repeatCount="indefinite" />
+                </circle>
               )}
+              
+              {/* Solid Node placed SECOND so it renders ON TOP cleanly */}
+              <circle 
+                r={isCurrent ? 6 : 4} 
+                fill={isReached ? "#10b981" : "#fff"} 
+                stroke={isReached ? "#fff" : "#9ca3af"} 
+                strokeWidth={1.5} 
+                style={{ transition: "all 0.5s ease-in-out" }}
+              />
             </Marker>
           );
         })}

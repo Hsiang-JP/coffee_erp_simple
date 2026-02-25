@@ -61,14 +61,17 @@ const CoffeeJourney = () => {
     try {
       await advanceStage(selectedContractId, parseFloat(costInput) || 0);
       setCostInput('');
-      // If triggerRefresh() is called in the hook, the useMemo will automatically recalculate!
     } catch (e) { 
-      console.error("Advance Error:", e); // Check the DevTools Console!
+      console.error("Advance Error:", e);
       alert("Failed: " + e.message); 
     } finally { 
       setIsAdvancing(false); 
     }
   };
+
+  // UI Expert Logic: Determine if the selected contract is already finished
+  const isFulfilled = contracts.find(c => c.id === selectedContractId)?.status === 'Fulfilled';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-stone-50 min-h-screen p-6">
       {/* Sidebar: Control Panel */}
@@ -80,21 +83,53 @@ const CoffeeJourney = () => {
           </div>
 
           <div className="p-8 space-y-8">
-            <select 
-              className="w-full bg-stone-100 border-none rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-              value={selectedContractId}
-              onChange={(e) => setSelectedContractId(e.target.value)}
-            >
-              <option value="">Select Active Contract</option>
-              {contracts.map(c => <option key={c.id} value={c.id}>{c.public_id} — {c.client_name}</option>)}
-            </select>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block ml-1">Inventory Deployment</label>
+              <select 
+                className={`w-full border-none rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${
+                  isFulfilled ? 'bg-stone-200 text-stone-500' : 'bg-stone-100 text-zinc-800'
+                }`}
+                value={selectedContractId}
+                onChange={(e) => setSelectedContractId(e.target.value)}
+              >
+                <option value="">Select Contract</option>
+                
+                <optgroup label="ACTIVE OPERATIONS" className="text-[10px] font-black text-emerald-600 tracking-widest uppercase">
+                  {contracts
+                    .filter(c => c.status === 'Processing')
+                    .map(c => (
+                      <option key={c.id} value={c.id} className="bg-white text-zinc-900 font-bold p-2">
+                        {c.public_id} — {c.client_name}
+                      </option>
+                    ))
+                  }
+                </optgroup>
+
+                <optgroup label="COMPLETED SHIPMENTS" className="text-[10px] font-black text-stone-400 tracking-widest uppercase">
+                  {contracts
+                    .filter(c => c.status === 'Fulfilled')
+                    .map(c => (
+                      <option 
+                        key={c.id} 
+                        value={c.id} 
+                        className="bg-stone-100 text-stone-500 italic p-2"
+                      >
+                        {c.public_id} — {c.client_name} (FULFILLED)
+                      </option>
+                    ))
+                  }
+                </optgroup>
+              </select>
+            </div>
 
             {selectedContractId && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
                 {/* Status Card */}
-                <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                  <span className="text-[10px] uppercase font-black text-emerald-800 tracking-widest">Status</span>
-                  <span className="text-xs font-bold text-emerald-900">{currentStage}</span>
+                <div className={`flex justify-between items-center p-4 rounded-2xl border ${
+                  isFulfilled ? 'bg-stone-100 border-stone-200' : 'bg-emerald-50 border-emerald-100'
+                }`}>
+                  <span className={`text-[10px] uppercase font-black tracking-widest ${isFulfilled ? 'text-stone-400' : 'text-emerald-800'}`}>Status</span>
+                  <span className={`text-xs font-bold ${isFulfilled ? 'text-stone-500' : 'text-emerald-900'}`}>{currentStage}</span>
                 </div>
 
                 {/* Contract Details Section */}
@@ -107,7 +142,6 @@ const CoffeeJourney = () => {
                     </span>
                   </div>
                   
-                  {/* ADDED: Total Weight Display */}
                   <div className="flex justify-between items-center border-b border-stone-200 pb-3">
                     <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">Total Weight</span>
                     <span className="text-sm font-black text-zinc-900">
@@ -128,8 +162,8 @@ const CoffeeJourney = () => {
                   </div>
                 </div>
 
-                {/* Logistics Input */}
-                {nextStage && (
+                {/* Logistics Input - Hidden if Fulfilled */}
+                {nextStage && !isFulfilled && (
                   <div className="space-y-3 pt-2">
                     <label className="text-[10px] uppercase font-black text-stone-400">Add Logistics Cost (${nextStage})</label>
                     <div className="relative">
@@ -147,6 +181,17 @@ const CoffeeJourney = () => {
                     >
                       {isAdvancing ? 'Processing...' : `Move to ${nextStage}`}
                     </button>
+                  </div>
+                )}
+
+                {/* Fulfilled Banner */}
+                {isFulfilled && (
+                  <div className="p-4 bg-stone-200 rounded-2xl border border-stone-300 flex items-center gap-3 animate-in fade-in zoom-in-95">
+                    <span className="text-xl">🏁</span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Historical Record</p>
+                      <p className="text-xs text-stone-600 font-medium">Contract fulfilled. Inventory cleared.</p>
+                    </div>
                   </div>
                 )}
               </div>

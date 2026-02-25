@@ -8,14 +8,14 @@ const QCReports = () => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  // 🍫 Color-coding logic for flavor categories
+  // 🍫 Premium Dark-Mode Color-coding for flavor categories
   const getNoteColor = (note) => {
     const n = note.toLowerCase();
-    if (n.includes('chocolate') || n.includes('nut') || n.includes('caramel')) return 'bg-amber-100 text-amber-800 border-amber-200';
-    if (n.includes('berry') || n.includes('fruit') || n.includes('citrus')) return 'bg-rose-100 text-rose-800 border-rose-200';
-    if (n.includes('floral') || n.includes('jasmine')) return 'bg-purple-100 text-purple-800 border-purple-200';
-    if (n.includes('spice') || n.includes('herbal')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    return 'bg-stone-100 text-stone-600 border-stone-200';
+    if (n.includes('chocolate') || n.includes('nut') || n.includes('caramel')) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+    if (n.includes('berry') || n.includes('fruit') || n.includes('citrus')) return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+    if (n.includes('floral') || n.includes('jasmine')) return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+    if (n.includes('spice') || n.includes('herbal')) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    return 'bg-stone-500/10 text-stone-400 border-stone-500/20';
   };
 
   const AttributeBar = React.memo(({ label, value, colorClass = "bg-stone-300" }) => (
@@ -46,7 +46,7 @@ const QCReports = () => {
         <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-zinc-400">Sensory Analysis & Quality Mapping</p>
       </header>
 
-      {/* 2. Restored Filters Section */}
+      {/* 2. Filters Section */}
       <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-200/60 flex flex-wrap gap-8 items-center mb-12">
         <div className="flex-1 min-w-[200px]">
           <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">Farm Name</label>
@@ -85,8 +85,8 @@ const QCReports = () => {
         </div>
         
         <button 
-           onClick={() => setFilters({ farmName: '', cupperName: '', lotPublicId: '' })}
-           className="text-[10px] font-black uppercase tracking-widest text-stone-300 hover:text-stone-900 transition-colors pt-6"
+            onClick={() => setFilters({ farmName: '', cupperName: '', lotPublicId: '' })}
+            className="text-[10px] font-black uppercase tracking-widest text-stone-300 hover:text-stone-900 transition-colors pt-6"
         >
           Reset Filters
         </button>
@@ -97,19 +97,35 @@ const QCReports = () => {
         {results.map((report) => (
           <div key={report.id} className="bg-white rounded-[2.5rem] shadow-xl shadow-stone-200/50 border border-stone-100 overflow-hidden flex flex-col md:flex-row min-h-[450px]">
             
-            {/* Left Sidebar: Lot Identity & Flavor Notes */}
-            <div className="w-full md:w-64 p-10 flex flex-col justify-between border-r border-stone-50 bg-stone-50/30">
-              <div>
-                <div className="flex items-center gap-2 mb-6">
-                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Verified Analysis</span>
+            {/* 🌑 Left Sidebar: PREMIUM DARK IDENTITY CARD */}
+            <div className="w-full md:w-72 p-10 flex flex-col justify-between bg-zinc-950 text-white relative">
+              {/* Visual Flair */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+
+              <div className="relative z-10">
+                {/* Header: Verified Tag & Lot ID Badge */}
+                <div className="flex items-center justify-between mb-8">
+                   <div className="flex items-center gap-2">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                     <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Verified</span>
+                   </div>
+                   <span className="text-[10px] font-mono font-bold text-stone-400 bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
+                     {report.lot_code}
+                   </span>
                 </div>
-                <h2 className="text-4xl font-black tracking-tighter text-zinc-900 mb-1 italic">{report.lot_code}</h2>
-                <p className="text-emerald-600 font-bold text-sm mb-8">{report.farm_name}</p>
+
+                {/* 1. FARM NAME (Primary Focus) */}
+                <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1">Origin Details</p>
+                <h2 className="text-4xl font-black tracking-tighter text-white mb-2 italic">{report.farm_name}</h2>
+                
+                {/* 2. CUPPER NAME */}
+                <p className="text-sm font-bold text-emerald-400 mb-8 flex items-center gap-2">
+                  Analyzed by: {report.cupper_name || 'System Analyst'}
+                </p>
                 
                 {/* 🏷️ FLAVOR NOTE BADGES */}
                 <div className="mb-8">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-300 mb-3">Flavor Notes</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-3">Flavor Notes</p>
                   <div className="flex flex-wrap gap-2">
                     {(report.primary_flavor_note || 'Clean').split(',').map((note, i) => (
                       <span 
@@ -122,30 +138,40 @@ const QCReports = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                {/* 3, 4, 5, 6. METADATA GRID */}
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4 border-t border-zinc-800 pt-6">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-300">Variety</p>
-                    <p className="text-xs font-bold text-stone-800">{report.variety}</p>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Variety</span>
+                    <span className="text-xs font-bold text-stone-300">{report.variety || 'N/A'}</span>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-300">Process</p>
-                    <p className="text-xs font-bold text-stone-800">{report.process_method}</p>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Process</span>
+                    <span className="text-xs font-bold text-stone-300">{report.process_method || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Harvest Date</span>
+                    <span className="text-xs font-bold text-stone-300">{report.harvest_date || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Cupping Date</span>
+                    <span className="text-xs font-bold text-stone-300">{report.cupping_date || 'N/A'}</span>
                   </div>
                 </div>
               </div>
               
-              <div className="mt-8">
-                <span className="text-[10px] font-black uppercase tracking-widest text-stone-300 block mb-1">Total Score</span>
-                <span className="text-5xl font-black text-emerald-500">{report.total_score}</span>
+              {/* TOTAL SCORE */}
+              <div className="mt-8 pt-8 border-t border-zinc-800 relative z-10">
+                <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block mb-1">Final Total Score</span>
+                <span className="text-6xl font-black text-emerald-400 tracking-tighter">{report.total_score}</span>
               </div>
             </div>
             
-            {/* Right Panel: Sensory Profile */}
+            {/* ☀️ Right Panel: SENSORY PROFILE (Kept bright for contrast) */}
             <div className="flex-1 p-10 bg-white">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-900">Sensory Profile</h3>
                 <div className="flex gap-1">
-                   {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-stone-200"></div>)}
+                    {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-stone-200"></div>)}
                 </div>
               </div>
 
