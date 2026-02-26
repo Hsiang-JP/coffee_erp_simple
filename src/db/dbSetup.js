@@ -183,7 +183,7 @@ export async function initDB() {
     try {
       console.log('🏗 Initializing Persistent DB...');
       const module = await SQLiteESMFactory({ 
-        locateFile: (f) => `${import.meta.env.BASE_URL}${f}` 
+        locateFile: (f) => f.startsWith('/') ? f : `${import.meta.env.BASE_URL}${f}` 
       });
       sqlite3 = SQLite.Factory(module);
       
