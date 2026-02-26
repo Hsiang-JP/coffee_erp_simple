@@ -18,7 +18,8 @@ const fetchFromAPI = async (query) => {
 /**
  * 🕵️‍♂️ THE AGENT: Checks the Local Island first, falls back to API, and saves new discoveries.
  */
-export const getOrAddLocation = async (locationName, locationType = 'Other') => {
+// 🚨 FIX: Removed locationType parameter
+export const getOrAddLocation = async (locationName) => { 
   // 1. Check the local database (The Island)
   try {
     const existing = await execute(`SELECT * FROM locations WHERE name = ?`, [locationName]);
@@ -35,15 +36,16 @@ export const getOrAddLocation = async (locationName, locationType = 'Other') => 
   const coords = await fetchFromAPI(locationName);
   
   // 3. Fallback safely if API fails or location is totally unknown
-  const finalLon = coords ? coords[0] : 0; // Or a safe default
-  const finalLat = coords ? coords[1] : 0; // Or a safe default
+  const finalLon = coords ? coords[0] : 0; 
+  const finalLat = coords ? coords[1] : 0; 
 
   // 4. Save to the Island so we never have to ask the API again
   const newId = `loc-${Date.now()}`;
   try {
+    // 🚨 FIX: Removed 'type' from the INSERT statement entirely
     await execute(
-      `INSERT INTO locations (id, name, type, latitude, longitude) VALUES (?, ?, ?, ?, ?)`,
-      [newId, locationName, locationType, finalLat, finalLon]
+      `INSERT INTO locations (id, name, latitude, longitude) VALUES (?, ?, ?, ?)`,
+      [newId, locationName, finalLat, finalLon]
     );
   } catch (e) {
     console.error("Failed to save to Island", e);
@@ -52,33 +54,37 @@ export const getOrAddLocation = async (locationName, locationType = 'Other') => 
   return { id: newId, name: locationName, latitude: finalLat, longitude: finalLon };
 };
 
-
-
-
+/**
+ * 🌍 OMNI-SCANNER: Scans all geographic fields across both tables
+ */
 export const syncAllDatabaseLocations = async (onProgress) => {
-  // 1. Collect all unique strings that need coordinates
-  const farmRegions = await execute(`SELECT DISTINCT region FROM farms`);
-  const clientPorts = await execute(`SELECT DISTINCT destination_port FROM clients`);
-  const clientCities = await execute(`SELECT DISTINCT destination_city FROM clients`);
+  const farmRegions = await execute(`SELECT DISTINCT region FROM farms WHERE region IS NOT NULL AND region != ''`);
+  const farmLocations = await execute(`SELECT DISTINCT location FROM farms WHERE location IS NOT NULL AND location != ''`);
+  
+  const clientPorts = await execute(`SELECT DISTINCT destination_port FROM clients WHERE destination_port IS NOT NULL AND destination_port != ''`);
+  const clientCities = await execute(`SELECT DISTINCT destination_city FROM clients WHERE destination_city IS NOT NULL AND destination_city != ''`);
+  const clientCountries = await execute(`SELECT DISTINCT destination_country FROM clients WHERE destination_country IS NOT NULL AND destination_country != ''`);
 
-  // 2. Flatten into a unique list of addresses
+  // 2. Flatten into a unique list of exact database strings
+  // 🚨 FIX: No longer tracking types, just grabbing the names
   const rawList = [
-    ...farmRegions.map(f => ({ name: `${f.region}, Peru`, type: 'Farm/Region' })),
-    ...clientPorts.map(c => ({ name: c.destination_port, type: 'Port' })),
-    ...clientCities.map(c => ({ name: c.destination_city, type: 'Client/City' }))
-  ].filter(item => item.name && item.name !== "");
+    ...farmRegions.map(f => f.region),
+    ...farmLocations.map(f => f.location),
+    ...clientPorts.map(c => c.destination_port),
+    ...clientCities.map(c => c.destination_city),
+    ...clientCountries.map(c => c.destination_country)
+  ].filter(name => name && name.trim() !== "");
 
   // Remove duplicates
-  const uniqueList = Array.from(new Set(rawList.map(a => a.name)))
-    .map(name => rawList.find(a => a.name === name));
+  const uniqueList = [...new Set(rawList)];
 
   let count = 0;
-  for (const item of uniqueList) {
+  for (const locationName of uniqueList) {
     count++;
-    if (onProgress) onProgress(`Syncing ${count}/${uniqueList.length}: ${item.name}`);
+    if (onProgress) onProgress(`Syncing ${count}/${uniqueList.length}: ${locationName}`);
     
-    // Call the Agent (which checks the DB first, then API)
-    await getOrAddLocation(item.name, item.type);
+    // 🚨 FIX: Only pass the name to the agent
+    await getOrAddLocation(locationName);
 
     // 🛑 IMPORTANT: Nominatim API requires 1-second delay between requests
     await new Promise(resolve => setTimeout(resolve, 1100));

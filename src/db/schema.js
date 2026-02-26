@@ -322,27 +322,26 @@ END;
   CREATE TABLE IF NOT EXISTS locations (
       id TEXT PRIMARY KEY,
       name TEXT UNIQUE NOT NULL, 
-      type TEXT CHECK(type IN ('Region', 'Warehouse', 'Port', 'City', 'Other', 'Country')),
       latitude REAL NOT NULL,
       longitude REAL NOT NULL,
       last_updated TEXT DEFAULT CURRENT_TIMESTAMP
   );
 
   -- Seed data for static hubs
-  INSERT OR IGNORE INTO locations (id, name, type, latitude, longitude) VALUES 
-  ('loc-cora', 'Cora', 'Warehouse', -12.8637, -72.6919),
-  ('loc-callao', 'Callao Port', 'Port', -12.0534, -77.1464),
-  ('loc-lima', 'Lima', 'City', -12.1195, -77.0365),
-  ('loc-chancay', 'Chancay Port', 'Port', -11.5821, -77.2721),
-  ('loc-keelung', 'Keelung Port', 'Port', 25.1288, 121.7419),
-  ('loc-taiwan', 'Taiwan', 'Country', 25.0345, 121.4876),
-  ('loc-taichung', 'Taichung', 'City', 24.1702, 120.7067),
-  ('loc-cusco', 'Cusco', 'City', -13.5319, -71.9675),
-  ('loc-cajamarca', 'Cajamarca', 'Region', -7.1638, -78.5002),
-  ('loc-junin', 'Junin', 'Region', -11.1583, -75.2754),
-  ('loc-quillabamba', 'Quillabamba', 'City', -12.9000, -72.6833),
-  ('loc-inkawasi', 'Inkawasi', 'City', -13.326, -73.2040),
-  ('loc-santa-teresa', 'Santa Teresa', 'City', -13.1500, -72.7500),
-  ('loc-quellouno', 'Quellouno', 'City', -13.2000, -72.6000);
+  INSERT OR IGNORE INTO locations (id, name, latitude, longitude) VALUES 
+  ('loc-cora', 'Cora', -12.8637, -72.6919),
+  ('loc-callao', 'Callao Port', -12.0534, -77.1464),
+  ('loc-lima', 'Lima', -12.1195, -77.0365),
+  ('loc-chancay', 'Chancay Port', -11.5821, -77.2721),
+  ('loc-keelung', 'Keelung Port', 25.1288, 121.7419),
+  ('loc-taiwan', 'Taiwan', 25.0345, 121.4876),
+  ('loc-taichung', 'Taichung', 24.1702, 120.7067),
+  ('loc-cusco', 'Cusco', -13.5319, -71.9675),
+  ('loc-cajamarca', 'Cajamarca', -7.1638, -78.5002),
+  ('loc-junin', 'Junin', -11.1583, -75.2754),
+  ('loc-quillabamba', 'Quillabamba', -12.9000, -72.6833),
+  ('loc-inkawasi', 'Inkawasi', -13.326, -73.2040),
+  ('loc-santa-teresa', 'Santa Teresa', -13.1500, -72.7500),
+  ('loc-quellouno', 'Quellouno', -13.2000, -72.6000);
 
 `;

@@ -1,19 +1,22 @@
 import React from 'react';
-
-const steps = [
-  { id: 'Farm', name: 'Farm Gate', description: 'Origin Base Cost', costKey: 'cost_to_warehouse' },
-  { id: 'Cora', name: 'Warehouse', description: 'At Cora Warehouse', costKey: 'cost_to_export' },
-  { id: 'Port-Export', name: 'Export', description: 'Ready for Shipping', costKey: 'cost_to_import' },
-  { id: 'Port-Import', name: 'Import', description: 'Arrived at Destination', costKey: 'cost_to_client' },
-  { id: 'Final Destination', name: 'Client', description: 'Delivered to Roastery', costKey: null },
-];
+import { useTranslation } from 'react-i18next';
 
 const CostStepper = React.memo(({ currentStage, costs }) => {
+  const { t } = useTranslation();
+
+  const steps = [
+    { id: 'Farm', name: t('stepper.steps.farm.name', 'Farm Gate'), description: t('stepper.steps.farm.desc', 'Origin Base Cost'), costKey: 'cost_to_warehouse' },
+    { id: 'Cora', name: t('stepper.steps.warehouse.name', 'Warehouse'), description: t('stepper.steps.warehouse.desc', 'At Cora Warehouse'), costKey: 'cost_to_export' },
+    { id: 'Port-Export', name: t('stepper.steps.export.name', 'Export'), description: t('stepper.steps.export.desc', 'Ready for Shipping'), costKey: 'cost_to_import' },
+    { id: 'Port-Import', name: t('stepper.steps.import.name', 'Import'), description: t('stepper.steps.import.desc', 'Arrived at Destination'), costKey: 'cost_to_client' },
+    { id: 'Final Destination', name: t('stepper.steps.client.name', 'Client'), description: t('stepper.steps.client.desc', 'Delivered to Roastery'), costKey: null },
+  ];
+
   const currentIndex = steps.findIndex(s => s.id === currentStage);
 
   return (
     <div className="">
-      <h3 className="text-[10px] uppercase tracking-[0.2em] font-black text-stone-400 mb-8">Value Chain Timeline</h3>
+      <h3 className="text-[10px] uppercase tracking-[0.2em] font-black text-stone-400 mb-8">{t('stepper.timeline', 'Value Chain Timeline')}</h3>
       
       <div className="flow-root">
         <ul role="list" className="-mb-8">

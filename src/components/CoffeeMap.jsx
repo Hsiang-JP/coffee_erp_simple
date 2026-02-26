@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ComposableMap, Geographies, Geography, Marker, Line } from "react-simple-maps";
 import { useStore } from '../store/store';
 
@@ -8,6 +9,7 @@ const STAGE_IDX = {
 };
 
 const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = null }) => {
+  const { t } = useTranslation();
   const { 
     farms = [], 
     contracts = [], 
@@ -122,7 +124,7 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
   }, [bags, contractId, farms, contracts, clients, lots, locations]);
 
   if (!locations || locations.length === 0) {
-    return <div className="w-full h-full bg-[#fdfbf7] flex items-center justify-center text-stone-400 text-[10px] uppercase tracking-widest">Initialising Spatial Island...</div>;
+    return <div className="w-full h-full bg-[#fdfbf7] flex items-center justify-center text-stone-400 text-[10px] uppercase tracking-widest">{t('map.initialising', 'Initialising Spatial Island...')}</div>;
   }
 
   return (
@@ -195,7 +197,7 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
       </ComposableMap>
       
       <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md p-4 rounded-[1.5rem] border border-stone-100 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Logistics Node</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">{t('map.logisticsNode', 'Logistics Node')}</p>
         <p className="text-sm font-black text-zinc-900 mt-1 uppercase italic">
           {currentStage}
         </p>
