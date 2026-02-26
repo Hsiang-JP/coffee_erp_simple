@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevData } from '../hooks/useDevData';
 import EditableCell from '../components/EditableCell';
 
 const DataManagement = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('producers');
   
   const {
@@ -20,14 +22,14 @@ const DataManagement = () => {
 
   const tableConfig = {
     producers: { 
-        label: 'Producers', 
+        label: t('dev.tabs.producers', 'Producers'), 
         columns: [
             { key: 'name', label: 'Name', type: 'text' }, 
             { key: 'relationship', label: 'Relationship', type: 'select', options: ['Important', 'Direct Trade', 'Co-op', 'Other'] }
         ] 
     },
     clients: { 
-        label: 'Clients', 
+        label: t('dev.tabs.clients', 'Clients'), 
         columns: [
             { key: 'name', label: 'Name', type: 'text' }, 
             { key: 'relationship', label: 'Relationship', type: 'select', options: ['VIP', 'International', 'National', 'Other'] },
@@ -37,7 +39,7 @@ const DataManagement = () => {
         ] 
     },
     farms: { 
-        label: 'Farms', 
+        label: t('dev.tabs.farms', 'Farms'), 
         columns: [
             { key: 'name', label: 'Farm Name', type: 'text' }, 
             { key: 'producer_name', label: 'Producer (Link)', type: 'text', disabled: true }, 
@@ -48,7 +50,7 @@ const DataManagement = () => {
         ] 
     },
     lots: { 
-        label: 'Lots', 
+        label: t('dev.tabs.lots', 'Lots'), 
         columns: [
             { key: 'public_id', label: 'Lot ID', type: 'text', disabled: true }, 
             { key: 'farm_name', label: 'Farm (Link)', type: 'text', disabled: true }, 
@@ -60,7 +62,7 @@ const DataManagement = () => {
         ] 
     },
     bags: { 
-        label: 'Bags', 
+        label: t('dev.tabs.bags', 'Bags'), 
         columns: [
             { key: 'public_id', label: 'Bag ID', type: 'text', disabled: true }, 
             { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
@@ -72,7 +74,7 @@ const DataManagement = () => {
         ] 
     },
     contracts: { 
-        label: 'Contracts', 
+        label: t('dev.tabs.contracts', 'Contracts'), 
         columns: [
             { key: 'public_id', label: 'CTR ID', type: 'text', disabled: true }, 
             { key: 'client_name', label: 'Client (Link)', type: 'text', disabled: true }, 
@@ -82,7 +84,7 @@ const DataManagement = () => {
         ] 
     },
     cost_ledger: { 
-        label: 'Cost Ledger', 
+        label: t('dev.tabs.costLedger', 'Cost Ledger'), 
         columns: [
             { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
             { key: 'cost_type', label: 'Type', type: 'select', options: ['Milling', 'Drying', 'Sorting', 'Lab/Grading', 'Packaging', 'Transportation', 'Other'] }, 
@@ -91,7 +93,7 @@ const DataManagement = () => {
         ] 
     },
     cupping_sessions: { 
-        label: 'Cupping Sessions', 
+        label: t('dev.tabs.cuppingSessions', 'Cupping Sessions'), 
         columns: [
             { key: 'public_id', label: 'QC ID', type: 'text', disabled: true }, 
             { key: 'lot_public_id', label: 'Lot (Link)', type: 'text', disabled: true }, 
@@ -101,7 +103,7 @@ const DataManagement = () => {
         ] 
     },
     bag_milestones: { 
-        label: 'Value Chain', 
+        label: t('dev.tabs.valueChain', 'Value Chain'), 
         columns: [
             { key: 'bag_public_id', label: 'Bag (Link)', type: 'text', disabled: true }, 
             { key: 'contract_public_id', label: 'Contract (Link)', type: 'text', disabled: true }, 
@@ -114,10 +116,9 @@ const DataManagement = () => {
         ] 
     },
     locations: {
-        label: 'GEO',
+        label: t('dev.tabs.geo', 'GEO'),
         columns: [
             { key: 'name', label: 'Place Name', type: 'text' },
-            { key: 'type', label: 'Type', type: 'select', options: ['Farm/Region', 'Warehouse', 'Port', 'Client/City', 'Other'] },
             { key: 'longitude', label: 'Lon', type: 'number' },
             { key: 'latitude', label: 'Lat', type: 'number' }
         ]
@@ -126,13 +127,14 @@ const DataManagement = () => {
 
   return (
     <div className="p-8 bg-zinc-950 min-h-screen text-zinc-100 flex flex-col gap-8">
+      
       {/* HEADER SECTION */}
       <div className="flex justify-between items-center shrink-0">
         <div>
           <h1 className="text-2xl font-black tracking-tighter uppercase italic">
-            Dev HUD <span className="text-zinc-500 font-light">/ Data Control</span>
+            {t('dev.title', 'Dev HUD')} <span className="text-zinc-500 font-light">/ {t('dev.subtitle', 'Data Control')}</span>
           </h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-1">Management Console V2</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-1">{t('dev.console', 'Management Console V2')}</p>
         </div>
         
         <div className="flex gap-4 items-center">
@@ -150,20 +152,20 @@ const DataManagement = () => {
                 isSyncing ? 'bg-zinc-800 text-zinc-500' : 'text-amber-400 hover:bg-amber-900/20'
               }`}
             >
-              {isSyncing ? 'Syncing...' : 'Sync Geodata'}
+              {isSyncing ? 'Syncing...' : t('dev.sync', 'Sync Geodata')}
             </button>
 
             <button onClick={handleClean} className="px-4 py-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-all text-[9px] font-black uppercase tracking-widest">
-              Clean
+              {t('dev.clean', 'Clean')}
             </button>
           </div>
 
           <div className="flex bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 gap-2">
             <button onClick={handleExport} className="px-4 py-2 text-zinc-100 hover:bg-zinc-800 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all">
-              Backup
+              {t('dev.backup', 'Backup')}
             </button>
             <label className="px-4 py-2 text-emerald-400 hover:bg-emerald-900/20 rounded-lg cursor-pointer text-[9px] font-black uppercase tracking-widest transition-all">
-              Restore
+              {t('dev.restore', 'Restore')}
               <input type="file" onChange={(e) => handleImport(e.target.files[0])} className="hidden" />
             </label>
           </div>
@@ -187,7 +189,9 @@ const DataManagement = () => {
 
       {/* TABLE SECTION */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl relative flex-1 min-h-0 overflow-hidden">
-        <div className="overflow-auto h-full no-scrollbar">
+        
+        {/* The targeted scroll fix */}
+        <div className="overflow-y-auto max-h-[calc(100vh-250px)] no-scrollbar pb-10">
           <table className="w-full text-left text-xs border-separate border-spacing-0">
             <thead className="sticky top-0 z-20 bg-zinc-900/95 backdrop-blur-md text-zinc-500 uppercase tracking-widest font-black text-[9px] shadow-sm">
               <tr>
@@ -195,7 +199,7 @@ const DataManagement = () => {
                 {tableConfig[activeTab].columns.map(col => (
                   <th key={col.key} className="p-6">{col.label}</th>
                 ))}
-                <th className="p-6 text-right">Actions</th>
+                <th className="p-6 text-right">{t('dev.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -231,7 +235,7 @@ const DataManagement = () => {
           {(!data[activeTab] || data[activeTab].length === 0) && (
             <div className="flex flex-col items-center justify-center py-24 text-zinc-700">
                <span className="text-4xl mb-4 opacity-20">📭</span>
-               <p className="text-[10px] font-black uppercase tracking-[0.2em]">No Data in {tableConfig[activeTab].label}</p>
+               <p className="text-[10px] font-black uppercase tracking-[0.2em]">{t('dev.noData', 'No Data in')} {tableConfig[activeTab].label}</p>
             </div>
           )}
         </div>
@@ -239,8 +243,8 @@ const DataManagement = () => {
         {!isDevMode && (
           <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-[4px] z-50 flex items-center justify-center p-8">
             <div className="bg-zinc-900 text-emerald-400 font-mono text-[10px] uppercase tracking-[0.4em] px-12 py-6 rounded-2xl shadow-2xl border border-emerald-500/20 animate-pulse text-center">
-              RESTRICTED ACCESS AREA<br/>
-              <span className="text-zinc-600 mt-2 block font-sans">Use Toggle Switch to Unlock Console</span>
+              {t('dev.restricted', 'RESTRICTED ACCESS AREA')}<br/>
+              <span className="text-zinc-600 mt-2 block font-sans">{t('dev.unlock', 'Use Toggle Switch to Unlock Console')}</span>
             </div>
           </div>
         )}

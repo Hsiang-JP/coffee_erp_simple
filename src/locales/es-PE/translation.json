@@ -1,0 +1,282 @@
+{
+  "nav": {
+    "title": "ERP de Café Verde",
+    "coffeeJourney": "Ruta del Café",
+    "allocation": "Asignación",
+    "qcReports": "Reportes de Calidad",
+    "dataEntry": "Ingreso de Datos",
+    "adminConsole": "Consola de Admin",
+    "unlocked": "Desbloqueado",
+    "locked": "Bloqueado",
+    "admin": "Admin"
+  },
+  "journey": {
+    "title": "Rastrear la",
+    "titleBold": "Ruta",
+    "subtitle": "Motor de Trazabilidad en Vivo",
+    "inventoryDeployment": "Despliegue de Inventario",
+    "selectContract": "Seleccionar Contrato",
+    "activeOperations": "OPERACIONES ACTIVAS",
+    "completedShipments": "ENVÍOS COMPLETADOS",
+    "status": "Estado",
+    "salePrice": "Precio de Venta",
+    "totalWeight": "Peso Total",
+    "varieties": "Variedades",
+    "addLogisticsCost": "Agregar Costo Logístico",
+    "moveTo": "Mover a",
+    "historicalRecord": "Registro Histórico",
+    "contractFulfilled": "Contrato cumplido. Inventario liberado.",
+    "totalLandedValue": "Valor Total en Destino (Prom/KG)",
+    "farmLedger": "Finca + Libro Mayor",
+    "ops": "Operaciones"
+  },
+  "allocation": {
+    "title": "Asignación",
+    "titleBold": "Inteligente",
+    "weight": "Peso (kg)",
+    "variety": "Variedad",
+    "all": "Todas",
+    "minQualityScore": "Puntaje Mínimo de Calidad",
+    "flavorSearch": "Búsqueda por Sabor/Nota",
+    "assignClient": "Asignar a Cliente",
+    "selectClient": "-- Seleccionar Cliente --",
+    "agreedSalePrice": "Precio de Venta Acordado ($/kg)",
+    "findOptions": "Buscar Opciones de Asignación",
+    "searching": "Buscando en el Motor...",
+    "trueCost": "Costo Real",
+    "bags": "Sacos",
+    "includedBags": "Vista Previa de Sacos Incluidos",
+    "noQc": "Sin CC",
+    "generateContract": "Generar Contrato",
+    "warehouseIntake": "Ingreso a Almacén",
+    "available": "Disponible",
+    "selected": "Seleccionado",
+    "allocated": "Asignado",
+    "applyGravity": "Aplicar Gravedad",
+    "pendingQc": "CC PENDIENTE",
+    "quality": "Calidad"
+  },
+  "qc": {
+    "title": "CC",
+    "titleBold": "Calibración",
+    "subtitle": "Análisis Sensorial y Mapeo de Calidad",
+    "farmName": "Nombre de Finca",
+    "allFarms": "Todas las Fincas",
+    "leadCupper": "Catador Principal",
+    "allCuppers": "Todos los Catadores",
+    "lotIdentifier": "Identificador de Lote",
+    "allLots": "Todos los Lotes",
+    "resetFilters": "Restablecer Filtros",
+    "verified": "Verificado",
+    "originDetails": "Detalles de Origen",
+    "analyzedBy": "Analizado por",
+    "systemAnalyst": "Analista del Sistema",
+    "flavorNotes": "Notas de Sabor",
+    "process": "Proceso",
+    "harvestDate": "Fecha de Cosecha",
+    "cuppingDate": "Fecha de Catación",
+    "finalTotalScore": "Puntaje Total Final",
+    "sensoryProfile": "Perfil Sensorial",
+    "fragrance": "Fragancia/Aroma",
+    "flavor": "Sabor",
+    "aftertaste": "Sabor Residual",
+    "acidity": "Acidez",
+    "body": "Cuerpo",
+    "balance": "Balance",
+    "uniformity": "Uniformidad",
+    "cleanCup": "Taza Limpia",
+    "sweetness": "Dulzor",
+    "overall": "Puntaje Catador",
+    "technicalObservations": "Observaciones Técnicas"
+  },
+  "entry": {
+    "title": "Ingreso de Datos e Ingreso a Almacén",
+    "tabs": {
+      "producer": "Productor",
+      "farm": "Finca",
+      "buyCoffee": "Comprar Café",
+      "costLedger": "Libro de Costos",
+      "cupping": "Catación",
+      "client": "Cliente"
+    },
+    "producer": {
+      "title": "Nuevo Productor",
+      "subtitle": "Registro de Entidad de la Cadena de Suministro",
+      "legalName": "Nombre Legal *",
+      "relationshipType": "Tipo de Relación *",
+      "submit": "Autorizar y Registrar Productor"
+    },
+    "farm": {
+      "title": "Registro de Finca",
+      "selectProducer": "Seleccionar Productor *",
+      "farmName": "Nombre de Finca *",
+      "altitude": "Altitud (m)",
+      "region": "Región *",
+      "location": "Ubicación *",
+      "submit": "Agregar Finca"
+    },
+    "buyCoffee": {
+      "title": "Ingreso de Inventario",
+      "subtitle": "Calibración Estándar de Saco de 69kg",
+      "sourceFarm": "Finca de Origen *",
+      "variety": "Variedad *",
+      "process": "Proceso *",
+      "approxWeight": "Peso Aprox (kg) *",
+      "harvestDate": "Fecha de Cosecha",
+      "calibrationWarning": "Advertencia de Calibración",
+      "roundingTo": "Redondeando a",
+      "bags": "sacos",
+      "baseFarmCost": "Costo Base en Finca ($/kg) *",
+      "submit": "Autorizar Compra y Generar Sacos"
+    },
+    "costLedger": {
+      "title": "Libro Mayor de Operaciones",
+      "subtitle": "Atribución de Costos Poscosecha",
+      "targetLot": "Lote de Café Objetivo *",
+      "selectLot": "Seleccionar Lote",
+      "costCategory": "Categoría de Costo *",
+      "amount": "Monto (USD) *",
+      "notes": "Notas / Descripción",
+      "submit": "Autorizar Gasto y Actualizar Valor del Lote"
+    },
+    "client": {
+      "title": "Registro de Cliente",
+      "subtitle": "Registros de Distribución Global",
+      "legalName": "Nombre Legal *",
+      "relationship": "Relación *",
+      "country": "País",
+      "port": "Puerto",
+      "city": "Ciudad *",
+      "submit": "Autorizar y Registrar Cliente"
+    },
+    "cupping": {
+      "title": "SCAA",
+      "titleBold": "Hoja de Evaluación",
+      "subtitle": "Calibración Sensorial",
+      "finalScore": "Puntaje Final",
+      "leadAnalyst": "Nombre del Catador *",
+      "sampleLot": "Selección de Lote de Muestra *",
+      "pendingAnalyst": "Analista Pendiente...",
+      "noDefects": "Sin Defectos",
+      "taint": "Mancha (-2)",
+      "fault": "Defecto (-4)",
+      "primaryFlavor": "Notas de Sabor Principales (Separadas por comas)",
+      "flavorPlaceholder": "ej. Jazmín, Miel, Limón",
+      "notes": "Notas",
+      "notesPlaceholder": "Detalles adicionales sobre cuerpo, enfriamiento o perfil de tueste...",  
+      "submit": "Autenticar y Guardar Análisis"
+    }
+  },
+  "map": {
+    "logisticsNode": "Nodo Logístico"
+  },
+  "stepper": {
+    "timeline": "Línea de Tiempo de la Cadena de Valor",
+    "steps": {
+      "farm": {
+        "name": "Tranquera de Finca",
+        "desc": "Costo Base de Origen"
+      },
+      "warehouse": {
+        "name": "Almacén",
+        "desc": "En Almacén Cora"
+      },
+      "export": {
+        "name": "Exportación",
+        "desc": "Listo para Envío"
+      },
+      "import": {
+        "name": "Importación",
+        "desc": "Llegada a Destino"
+      },
+      "client": {
+        "name": "Cliente",
+        "desc": "Entregado a Tostaduría"
+      }
+    }
+  },
+  "dev": {
+    "title": "HUD de Desarrollo",
+    "subtitle": "Control de Datos",
+    "console": "Consola de Gestión V2",
+    "sync": "Sincronizar Geodatos",
+    "clean": "Limpiar",
+    "backup": "Copia de Seguridad",
+    "restore": "Restaurar",
+    "tabs": {
+      "producers": "Productores",
+      "clients": "Clientes",
+      "farms": "Fincas",
+      "lots": "Lotes",
+      "bags": "Sacos",
+      "contracts": "Contratos",
+      "costLedger": "Libro de Costos",
+      "cuppingSessions": "Sesiones de Catación",
+      "valueChain": "Cadena de Valor",
+      "geo": "GEO"
+    },
+    "actions": "Acciones",
+    "noData": "Sin Datos en",
+    "restricted": "ÁREA DE ACCESO RESTRINGIDO",
+    "unlock": "Use el Interruptor para Desbloquear la Consola"
+  },
+  "alerts": {
+    "success": {
+      "producerRegistered": "Éxito: Productor \"{{name}}\" registrado.",
+      "farmRegistered": "Éxito: Finca registrada.",
+      "lotRegistered": "Éxito: {{weight}}kg de {{variety}} registrados.",
+      "costRegistered": "Éxito: Costo de {{type}} registrado.",
+      "clientRegistered": "Éxito: Cliente \"{{name}}\" registrado.",
+      "gravityApplied": "Los estantes ya están consolidados. No se detectaron sacos flotantes.",
+      "contractGenerated": "¡Contrato Generado! ID: {{id}}\nPrecio de Venta: ${{price}}/kg",
+      "scoresheetSaved": "Éxito: Hoja de evaluación sincronizada.",
+      "dbRestored": "¡Base de datos restaurada!",
+      "dataCleared": "Datos transaccionales borrados.",
+      "simulationComplete": "Éxito: ¡Simulación completa!\n\nRevise la consola para el informe completo.\n3 contratos generados y preparados."
+    },
+    "error": {
+      "registration": "Error de registro: {{message}}",
+      "intake": "Error de ingreso: {{message}}",
+      "ledger": "Error de libro mayor: {{message}}" ,
+      "generic": "Error: {{message}}",
+      "noOptions": "No se encontraron opciones de asignación. Por favor ajuste sus criterios (ej. baje el puntaje mínimo de calidad o limpie el filtro de variedad).",
+      "dbUpdate": "Error al actualizar la base de datos: {{message}}",
+      "exportFailed": "Exportación fallida: {{message}}",
+      "restoreFailed": "Restauración fallida: {{message}}",
+      "cleanFailed": "Limpieza fallida: {{message}}",
+      "deleteFailed": "Eliminación fallida: {{message}}",
+      "simulationFailed": "Simulación fallida: {{message}}"
+    },
+    "confirm": {
+      "generateContract": "¿Generar contrato para el cliente: {{name}} a ${{price}}/kg?",
+      "softClean": "LIMPIEZA SUAVE: Esto borrará todos los datos transaccionales (Lotes, Sacos, Contratos) pero mantendrá Productores y Fincas. ¿Proceder?",
+      "forceDelete": "¿FORZAR ELIMINACIÓN de {{table}}? (Esto también eliminará todos los registros hijos asociados)"
+    },
+    "sync": {
+      "starting": "Iniciando sincronización de geodatos...",
+      "complete": "¡Sincronización completa! {{total}} ubicaciones mapeadas.",
+      "failed": "Sincronización fallida: {{message}}"
+    }
+  },
+  "validation": {
+    "producerNameRequired": "El nombre del productor es obligatorio.",
+    "missingFarmFields": "Campos faltantes: Productor, Nombre de Finca, Región y Ubicación son obligatorios.",
+    "missingIntakeData": "Datos faltantes: Todos los campos obligatorios (*) deben ser completados.",
+    "selectLot": "Por favor seleccione un lote de café.",
+    "invalidAmount": "Por favor ingrese un monto válido en USD.",
+    "clientNameRequired": "El nombre del cliente es obligatorio.",
+    "cityRequired": "La ciudad de destino es obligatoria.",
+    "selectClient": "Por favor seleccione un cliente para generar el contrato.",
+    "invalidSalePrice": "Por favor ingrese un precio de venta acordado válido ($/kg).",
+    "noBagsSelected": "No hay sacos seleccionados.",
+    "cupperRequired": "El nombre del catador es obligatorio.",
+    "lotRequired": "Por favor seleccione un lote."
+  },
+  "common": {
+    "processing": "Procesando...",
+    "empty": "Vacío",
+    "edit": "Editar",
+    "selectFarm": "Seleccionar Finca",
+    "selectLot": "Seleccionar Lote"
+  }
+}

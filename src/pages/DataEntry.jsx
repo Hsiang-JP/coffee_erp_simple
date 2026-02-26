@@ -5,6 +5,7 @@ import SCAACuppingForm from '../components/SCAACuppingForm';
 import { createProducer } from '../db/services/producerService';
 import { createFarm } from '../db/services/farmService';
 import { createClient, createCostLedgerEntry } from '../db/services/inventoryService';
+import { useTranslation } from 'react-i18next';
 
 // --- Reusable Combobox Component ---
 const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
@@ -61,6 +62,7 @@ const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
 // --- Form Components ---
 
 const NewProducerForm = () => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [relationship, setRelationship] = useState('Other');
   const { triggerRefresh, fetchAll } = useStore(); // Destructure both for full sync
@@ -70,7 +72,7 @@ const NewProducerForm = () => {
 
     // 1. SCHEMA VALIDATION: Check NOT NULL field
     if (!name.trim()) {
-      alert("Producer Name is required.");
+      alert(t('validation.producerNameRequired'));
       return;
     }
 
@@ -81,7 +83,7 @@ const NewProducerForm = () => {
         relationship 
       });
 
-      alert(`Successful: Producer "${name}" registered.`);
+      alert(t('alerts.success.producerRegistered', { name }));
       
       // 3. Reset Form
       setName('');
@@ -91,20 +93,20 @@ const NewProducerForm = () => {
       await fetchAll();
       triggerRefresh();
     } catch (err) {
-      alert("Registration Error: " + err.message);
+      alert(t('alerts.error.registration', { message: err.message }));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-stone-100 max-w-2xl space-y-6">
       <div className="border-b border-stone-100 pb-4">
-        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">New Producer</h3>
-        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Supply Chain Entity Registration</p>
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">{t('entry.producer.title')}</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{t('entry.producer.subtitle')}</p>
       </div>
 
       <div className="space-y-4">
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Legal Name *</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.producer.legalName')}</label>
           <input 
             type="text" 
             value={name} 
@@ -115,7 +117,7 @@ const NewProducerForm = () => {
         </div>
 
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Relationship Type *</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.producer.relationshipType')}</label>
           <select 
             value={relationship} 
             onChange={(e) => setRelationship(e.target.value)} 
@@ -134,13 +136,14 @@ const NewProducerForm = () => {
         type="submit" 
         className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] hover:bg-black transition-all shadow-xl shadow-stone-200"
       >
-        Authorize & Register Producer
+        {t('entry.producer.submit')}
       </button>
     </form>
   );
 };
 
 const NewFarmForm = () => {
+  const { t } = useTranslation();
   const { producers, farms, triggerRefresh, fetchAll } = useStore();
   const [producerId, setProducerId] = useState('');
   const [name, setName] = useState('');
@@ -164,10 +167,10 @@ const NewFarmForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!producerId || !name.trim() || !region || !location) {
-      return alert("Missing Fields: Producer, Farm Name, Region, and Location are required.");
+      return alert(t('validation.missingFarmFields'));
     }
     await createFarm({ producerId, name, region, altitude: parseFloat(altitude) || 0, location, certification });
-    alert("Successful: Farm registered.");
+    alert(t('alerts.success.farmRegistered'));
     setName(''); setAltitude('');
     await fetchAll();
     triggerRefresh();
@@ -175,27 +178,28 @@ const NewFarmForm = () => {
 
   return (
     <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-stone-100 max-w-2xl space-y-6">
-      <h3 className="text-2xl font-black italic uppercase tracking-tighter">Farm Registration</h3>
+      <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('entry.farm.title')}</h3>
       <div className="grid grid-cols-1 gap-6">
         <select value={producerId} onChange={(e) => setProducerId(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold">
-          <option value="">Select Producer *</option>
+          <option value="">{t('entry.farm.selectProducer')}</option>
           {producers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Farm Name *" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
-          <input type="number" placeholder="Altitude (m)" value={altitude} onChange={(e) => setAltitude(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
+          <input type="text" placeholder={t('entry.farm.farmName')} value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
+          <input type="number" placeholder={t('entry.farm.altitude')} value={altitude} onChange={(e) => setAltitude(e.target.value)} className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold" />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <Combobox label="Region *" options={regionOptions} value={region} onChange={setRegion} onAdd={setRegion} />
-          <Combobox label="Location *" options={locationOptions} value={location} onChange={setLocation} onAdd={setLocation} />
+          <Combobox label={t('entry.farm.region')} options={regionOptions} value={region} onChange={setRegion} onAdd={setRegion} />
+          <Combobox label={t('entry.farm.location')} options={locationOptions} value={location} onChange={setLocation} onAdd={setLocation} />
         </div>
       </div>
-      <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase">Add Farm</button>
+      <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase">{t('entry.farm.submit')}</button>
     </form>
   );
 };
 
 const BuyCoffeeForm = () => {
+  const { t } = useTranslation();
   const { farms, lots, fetchAll, triggerRefresh } = useStore();
   const [farmId, setFarmId] = useState('');
   const [variety, setVariety] = useState('');
@@ -234,7 +238,7 @@ const BuyCoffeeForm = () => {
 
     // SCHEMA CHECK: variety, process_method, total_weight_kg, base_farm_cost_per_kg NOT NULL
     if (!farmId || !variety || !processMethod || roundedWeight <= 0 || !baseCost) {
-      return alert("Missing Data: All required fields (*) must be filled.");
+      return alert(t('validation.missingIntakeData'));
     }
     
     try {
@@ -247,7 +251,7 @@ const BuyCoffeeForm = () => {
         harvest_date: harvestDate
       });
 
-      alert(`Successful: ${roundedWeight}kg of ${variety} registered.`);
+      alert(t('alerts.success.lotRegistered', { weight: roundedWeight, variety }));
       
       // Reset Form
       setFarmId(''); setVariety(''); setProcessMethod(''); 
@@ -256,27 +260,27 @@ const BuyCoffeeForm = () => {
       await fetchAll();
       triggerRefresh();
     } catch (err) {
-      alert("Intake Error: " + err.message);
+      alert(t('alerts.error.intake', { message: err.message }));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] space-y-8 shadow-sm border border-stone-100 max-w-2xl">
       <div className="border-b border-stone-100 pb-4">
-        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Inventory Intake</h3>
-        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Standard 69kg Bag Calibration</p>
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">{t('entry.buyCoffee.title')}</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{t('entry.buyCoffee.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* Source Farm Selection */}
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Source Farm *</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.buyCoffee.sourceFarm')}</label>
           <select 
             value={farmId} 
             onChange={(e) => setFarmId(e.target.value)} 
             className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="">Select Farm</option>
+            <option value="">{t('common.selectFarm')}</option>
             {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </div>
@@ -284,7 +288,7 @@ const BuyCoffeeForm = () => {
         {/* Dynamic Variety & Process Combos */}
         <div className="grid grid-cols-2 gap-4">
           <Combobox 
-            label="Variety *" 
+            label={t('entry.buyCoffee.variety')} 
             placeholder="e.g. Caturra"
             options={varietyOptions} 
             value={variety} 
@@ -292,7 +296,7 @@ const BuyCoffeeForm = () => {
             onAdd={setVariety} 
           />
           <Combobox 
-            label="Process *" 
+            label={t('entry.buyCoffee.process')} 
             placeholder="e.g. Washed"
             options={processOptions} 
             value={processMethod} 
@@ -304,7 +308,7 @@ const BuyCoffeeForm = () => {
         {/* Weight & Harvest Date */}
         <div className="grid grid-cols-2 gap-4">
           <div className="relative">
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Approx Weight (kg) *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.buyCoffee.approxWeight')}</label>
             <input 
               type="number" step="0.01" value={inputWeight} 
               onChange={(e) => setInputWeight(e.target.value)} 
@@ -313,7 +317,7 @@ const BuyCoffeeForm = () => {
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Harvest Date</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.buyCoffee.harvestDate')}</label>
             <input 
               type="date" value={harvestDate} 
               onChange={(e) => setHarvestDate(e.target.value)} 
@@ -327,9 +331,9 @@ const BuyCoffeeForm = () => {
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
             <span className="text-xl">⚖️</span>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Calibration Warning</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">{t('entry.buyCoffee.calibrationWarning')}</p>
               <p className="text-xs text-amber-700 font-medium">
-                Rounding to <span className="font-black">{roundedWeight}kg</span> ({Math.ceil(roundedWeight/69)} bags).
+                {t('entry.buyCoffee.roundingTo')} <span className="font-black">{roundedWeight}kg</span> ({Math.ceil(roundedWeight/69)} {t('entry.buyCoffee.bags')}).
               </p>
             </div>
           </div>
@@ -337,7 +341,7 @@ const BuyCoffeeForm = () => {
 
         {/* Cost per KG */}
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Base Farm Cost ($/kg) *</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.buyCoffee.baseFarmCost')}</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
             <input 
@@ -351,13 +355,14 @@ const BuyCoffeeForm = () => {
       </div>
 
       <button type="submit" className="w-full bg-zinc-900 text-white p-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.5em] hover:bg-black transition-all shadow-xl shadow-stone-200">
-        Authorize Purchase & Generate Bags
+        {t('entry.buyCoffee.submit')}
       </button>
     </form>
   );
 };
 
 const CostLedgerForm = () => {
+  const { t } = useTranslation();
   const { lots, farms, triggerRefresh, fetchAll } = useStore();
   
   // State matching the schema
@@ -382,9 +387,9 @@ const CostLedgerForm = () => {
     e.preventDefault();
 
     // 2. SCHEMA VALIDATION: Check NOT NULL fields
-    if (!lotId) return alert("Please select a Coffee Lot.");
+    if (!lotId) return alert(t('validation.selectLot'));
     if (!amountUsd || parseFloat(amountUsd) <= 0) {
-      return alert("Please enter a valid Amount in USD.");
+      return alert(t('validation.invalidAmount'));
     }
 
     try {
@@ -397,7 +402,7 @@ const CostLedgerForm = () => {
         notes: notes.trim()
       });
 
-      alert(`Successful: ${costType} cost registered.`);
+      alert(t('alerts.success.costRegistered', { type: costType }));
       
       // Reset Form
       setLotId('');
@@ -408,27 +413,27 @@ const CostLedgerForm = () => {
       await fetchAll();
       triggerRefresh();
     } catch (err) {
-      alert("Ledger Error: " + err.message);
+      alert(t('alerts.error.ledger', { message: err.message }));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-stone-100 max-w-2xl space-y-6">
       <div className="border-b border-stone-100 pb-4">
-        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Operations Ledger</h3>
-        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Post-Harvest Cost Attribution</p>
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">{t('entry.costLedger.title')}</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{t('entry.costLedger.subtitle')}</p>
       </div>
 
       <div className="space-y-6">
         {/* Lot Selection with Farm Context */}
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Target Coffee Lot *</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.costLedger.targetLot')}</label>
           <select 
             value={lotId} 
             onChange={(e) => setLotId(e.target.value)}
             className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="">Select Lot</option>
+            <option value="">{t('entry.costLedger.selectLot')}</option>
             {lotOptions.map(opt => (
               <option key={opt.id} value={opt.id}>{opt.label}</option>
             ))}
@@ -438,7 +443,7 @@ const CostLedgerForm = () => {
         <div className="grid grid-cols-2 gap-4">
           {/* Cost Type matching CHECK(cost_type IN (...)) */}
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Cost Category *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.costLedger.costCategory')}</label>
             <select 
               value={costType} 
               onChange={(e) => setCostType(e.target.value)}
@@ -455,7 +460,7 @@ const CostLedgerForm = () => {
           </div>
 
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Amount (USD) *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.costLedger.amount')}</label>
             <div className="relative">
                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
                <input 
@@ -469,7 +474,7 @@ const CostLedgerForm = () => {
         </div>
 
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Notes / Description</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.costLedger.notes')}</label>
           <textarea 
             value={notes} 
             onChange={(e) => setNotes(e.target.value)}
@@ -480,13 +485,14 @@ const CostLedgerForm = () => {
       </div>
 
       <button type="submit" className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.4em] hover:bg-black transition-all shadow-xl">
-        Authorize Expense & Update Lot Value
+        {t('entry.costLedger.submit')}
       </button>
     </form>
   );
 };
 
 const ClientForm = () => {
+  const { t } = useTranslation();
   const { clients, triggerRefresh, fetchAll } = useStore();
   
   // Form State
@@ -519,8 +525,8 @@ const ClientForm = () => {
     e.preventDefault();
 
     // 2. SCHEMA VALIDATION: name and destination_city are NOT NULL
-    if (!name.trim()) return alert("Client Name is required.");
-    if (!city.trim()) return alert("Destination City is required.");
+    if (!name.trim()) return alert(t('validation.clientNameRequired'));
+    if (!city.trim()) return alert(t('validation.cityRequired'));
 
     try {
       await createClient({ 
@@ -531,7 +537,7 @@ const ClientForm = () => {
         city: city.trim() 
       });
 
-      alert(`Successful: Client "${name}" registered.`);
+      alert(t('alerts.success.clientRegistered', { name }));
       
       // 3. Reset Form
       setName(''); setRelationship('Other'); setCountry(''); setPort(''); setCity('');
@@ -540,21 +546,21 @@ const ClientForm = () => {
       await fetchAll();
       triggerRefresh();
     } catch (err) {
-      alert("Registration Error: " + err.message);
+      alert(t('alerts.error.registration', { message: err.message }));
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-stone-100 max-w-2xl space-y-6">
       <div className="border-b border-stone-100 pb-4">
-        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Client Onboarding</h3>
-        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Global Distribution Records</p>
+        <h3 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">{t('entry.client.title')}</h3>
+        <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{t('entry.client.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Legal Name *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.client.legalName')}</label>
             <input 
               type="text" value={name} onChange={(e) => setName(e.target.value)} 
               placeholder="e.g. Blue Bottle"
@@ -562,7 +568,7 @@ const ClientForm = () => {
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Relationship *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.client.relationship')}</label>
             <select 
               value={relationship} onChange={(e) => setRelationship(e.target.value)}
               className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800"
@@ -579,17 +585,17 @@ const ClientForm = () => {
         {/* Searchable Logistics Combos */}
         <div className="grid grid-cols-3 gap-4">
           <Combobox 
-            label="Country" placeholder="Search..."
+            label={t('entry.client.country')} placeholder="Search..."
             options={countryOptions} value={country} 
             onChange={setCountry} onAdd={setCountry} 
           />
           <Combobox 
-            label="Port" placeholder="Search..."
+            label={t('entry.client.port')} placeholder="Search..."
             options={portOptions} value={port} 
             onChange={setPort} onAdd={setPort} 
           />
           <Combobox 
-            label="City *" placeholder="Search..."
+            label={t('entry.client.city')} placeholder="Search..."
             options={cityOptions} value={city} 
             onChange={setCity} onAdd={setCity} 
           />
@@ -600,13 +606,14 @@ const ClientForm = () => {
         type="submit" 
         className="w-full bg-zinc-900 text-white p-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.5em] hover:bg-black transition-all shadow-xl"
       >
-        Authorize & Register Client
+        {t('entry.client.submit')}
       </button>
     </form>
   );
 };
 
 const DataEntry = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('producer');
   const renderForm = () => {
     switch (activeTab) {
@@ -622,12 +629,12 @@ const DataEntry = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-6">Data Entry & Warehouse Intake</h2>
+      <h2 className="text-2xl font-bold mb-6">{t('entry.title')}</h2>
       <div className="bg-white shadow rounded-lg flex">
         <div className="w-1/4 border-r border-gray-200 p-4 space-y-2">
           {['producer', 'farm', 'buyCoffee', 'costLedger', 'cupping', 'client'].map(tab => (
             <TabButton key={tab} name={tab} activeTab={activeTab} setActiveTab={setActiveTab}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1).replace(/([A-Z])/g, ' $1')}
+              {t(`entry.tabs.${tab}`)}
             </TabButton>
           ))}
         </div>

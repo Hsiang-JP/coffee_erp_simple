@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { execute } from '../db/dbSetup';
 import { useStore } from '../store/store';
+import { useTranslation } from 'react-i18next';
 
 const EditableCell = ({ tableName, id, column, value, type, options, forceDisabled }) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(value || '');
   const inputRef = useRef(null);
@@ -32,7 +34,7 @@ const EditableCell = ({ tableName, id, column, value, type, options, forceDisabl
       triggerRefresh(); // Tell Zustand to update the UI globally
     } catch (error) {
       console.error("Failed to update cell:", error);
-      alert("Error updating database: " + error.message);
+      alert(t('alerts.error.dbUpdate', { message: error.message }));
       setCurrentValue(value); // Revert to original value on failure
     }
   };
@@ -96,10 +98,10 @@ const EditableCell = ({ tableName, id, column, value, type, options, forceDisabl
       className="group flex justify-between items-center px-3 py-2 -mx-3 rounded-lg border border-transparent hover:border-zinc-800 hover:bg-zinc-800/50 cursor-pointer transition-all"
     >
       <span className="truncate max-w-[200px]">
-        {value || <span className="text-zinc-700 italic">Empty</span>}
+        {value || <span className="text-zinc-700 italic">{t('common.empty')}</span>}
       </span>
       <span className="text-emerald-500/0 group-hover:text-emerald-500/80 transition-colors text-[9px] font-black tracking-widest uppercase">
-        ✎ Edit
+        ✎ {t('common.edit')}
       </span>
     </div>
   );

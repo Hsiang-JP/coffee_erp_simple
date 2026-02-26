@@ -1,7 +1,9 @@
 import React from 'react';
 import { useCuppingFilters } from '../hooks/useCuppingFilters';
+import { useTranslation } from 'react-i18next';
 
 const QCReports = () => {
+  const { t } = useTranslation();
   const { filters, setFilters, results, options } = useCuppingFilters();
 
   const handleFilterChange = (key, value) => {
@@ -40,46 +42,46 @@ const QCReports = () => {
       {/* 1. Header */}
       <header className="mb-12">
         <div className="flex items-baseline gap-3 mb-2">
-          <span className="text-3xl font-light text-zinc-400">QC</span>
-          <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase italic">Calibration</h1>
+          <span className="text-3xl font-light text-zinc-400">{t('qc.title')}</span>
+          <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase italic">{t('qc.titleBold')}</h1>
         </div>
-        <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-zinc-400">Sensory Analysis & Quality Mapping</p>
+        <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-zinc-400">{t('qc.subtitle')}</p>
       </header>
 
       {/* 2. Filters Section */}
       <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-200/60 flex flex-wrap gap-8 items-center mb-12">
         <div className="flex-1 min-w-[200px]">
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">Farm Name</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">{t('qc.farmName')}</label>
           <select 
             className="w-full bg-stone-50 border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-stone-200"
             value={filters.farmName || ''}
             onChange={(e) => handleFilterChange('farmName', e.target.value)}
           >
-            <option value="">All Farms</option>
+            <option value="">{t('qc.allFarms')}</option>
             {options.farms.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">Lead Cupper</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">{t('qc.leadCupper')}</label>
           <select 
             className="w-full bg-stone-50 border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-stone-200"
             value={filters.cupperName || ''}
             onChange={(e) => handleFilterChange('cupperName', e.target.value)}
           >
-            <option value="">All Cuppers</option>
+            <option value="">{t('qc.allCuppers')}</option>
             {options.cuppers.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">Lot Identifier</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2 block">{t('qc.lotIdentifier')}</label>
           <select 
             className="w-full bg-stone-50 border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-stone-200"
             value={filters.lotPublicId || ''}
             onChange={(e) => handleFilterChange('lotPublicId', e.target.value)}
           >
-            <option value="">All Lots</option>
+            <option value="">{t('qc.allLots')}</option>
             {options.lots.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
@@ -88,7 +90,7 @@ const QCReports = () => {
             onClick={() => setFilters({ farmName: '', cupperName: '', lotPublicId: '' })}
             className="text-[10px] font-black uppercase tracking-widest text-stone-300 hover:text-stone-900 transition-colors pt-6"
         >
-          Reset Filters
+          {t('qc.resetFilters')}
         </button>
       </div>
 
@@ -107,7 +109,7 @@ const QCReports = () => {
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-2">
                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                     <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Verified</span>
+                     <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">{t('qc.verified')}</span>
                    </div>
                    <span className="text-[10px] font-mono font-bold text-stone-400 bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
                      {report.lot_code}
@@ -115,17 +117,17 @@ const QCReports = () => {
                 </div>
 
                 {/* 1. FARM NAME (Primary Focus) */}
-                <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1">Origin Details</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1">{t('qc.originDetails')}</p>
                 <h2 className="text-4xl font-black tracking-tighter text-white mb-2 italic">{report.farm_name}</h2>
                 
                 {/* 2. CUPPER NAME */}
                 <p className="text-sm font-bold text-emerald-400 mb-8 flex items-center gap-2">
-                  Analyzed by: {report.cupper_name || 'System Analyst'}
+                  {t('qc.analyzedBy')}: {report.cupper_name || t('qc.systemAnalyst')}
                 </p>
                 
                 {/* 🏷️ FLAVOR NOTE BADGES */}
                 <div className="mb-8">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-3">Flavor Notes</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-3">{t('qc.flavorNotes')}</p>
                   <div className="flex flex-wrap gap-2">
                     {(report.primary_flavor_note || 'Clean').split(',').map((note, i) => (
                       <span 
@@ -141,19 +143,19 @@ const QCReports = () => {
                 {/* 3, 4, 5, 6. METADATA GRID */}
                 <div className="grid grid-cols-2 gap-y-5 gap-x-4 border-t border-zinc-800 pt-6">
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Variety</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">{t('allocation.variety')}</span>
                     <span className="text-xs font-bold text-stone-300">{report.variety || 'N/A'}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Process</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">{t('qc.process')}</span>
                     <span className="text-xs font-bold text-stone-300">{report.process_method || 'N/A'}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Harvest Date</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">{t('qc.harvestDate')}</span>
                     <span className="text-xs font-bold text-stone-300">{report.harvest_date || 'N/A'}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">Cupping Date</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-1">{t('qc.cuppingDate')}</span>
                     <span className="text-xs font-bold text-stone-300">{report.cupping_date || 'N/A'}</span>
                   </div>
                 </div>
@@ -161,7 +163,7 @@ const QCReports = () => {
               
               {/* TOTAL SCORE */}
               <div className="mt-8 pt-8 border-t border-zinc-800 relative z-10">
-                <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block mb-1">Final Total Score</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block mb-1">{t('qc.finalTotalScore')}</span>
                 <span className="text-6xl font-black text-emerald-400 tracking-tighter">{report.total_score}</span>
               </div>
             </div>
@@ -169,28 +171,28 @@ const QCReports = () => {
             {/* ☀️ Right Panel: SENSORY PROFILE (Kept bright for contrast) */}
             <div className="flex-1 p-10 bg-white">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-900">Sensory Profile</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-900">{t('qc.sensoryProfile')}</h3>
                 <div className="flex gap-1">
                     {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-stone-200"></div>)}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-y-4">
-                <AttributeBar label="Fragrance/Aroma" value={report.score_fragrance} colorClass="bg-orange-200" />
-                <AttributeBar label="Flavor" value={report.score_flavor} colorClass="bg-yellow-200" />
-                <AttributeBar label="Aftertaste" value={report.score_aftertaste} colorClass="bg-stone-300" />
-                <AttributeBar label="Acidity" value={report.score_acidity} colorClass="bg-teal-200" />
-                <AttributeBar label="Body" value={report.score_body} colorClass="bg-amber-900/40" />
-                <AttributeBar label="Balance" value={report.score_balance} colorClass="bg-emerald-200" />
-                <AttributeBar label="Uniformity" value={report.score_uniformity} colorClass="bg-blue-100" />
-                <AttributeBar label="Clean Cup" value={report.score_clean_cup} colorClass="bg-sky-100" />
-                <AttributeBar label="Sweetness" value={report.score_sweetness} colorClass="bg-pink-100" />
-                <AttributeBar label="Overall" value={report.score_overall} colorClass="bg-zinc-800" />
+                <AttributeBar label={t('qc.fragrance')} value={report.score_fragrance} colorClass="bg-orange-200" />
+                <AttributeBar label={t('qc.flavor')} value={report.score_flavor} colorClass="bg-yellow-200" />
+                <AttributeBar label={t('qc.aftertaste')} value={report.score_aftertaste} colorClass="bg-stone-300" />
+                <AttributeBar label={t('qc.acidity')} value={report.score_acidity} colorClass="bg-teal-200" />
+                <AttributeBar label={t('qc.body')} value={report.score_body} colorClass="bg-amber-900/40" />
+                <AttributeBar label={t('qc.balance')} value={report.score_balance} colorClass="bg-emerald-200" />
+                <AttributeBar label={t('qc.uniformity')} value={report.score_uniformity} colorClass="bg-blue-100" />
+                <AttributeBar label={t('qc.cleanCup')} value={report.score_clean_cup} colorClass="bg-sky-100" />
+                <AttributeBar label={t('qc.sweetness')} value={report.score_sweetness} colorClass="bg-pink-100" />
+                <AttributeBar label={t('qc.overall')} value={report.score_overall} colorClass="bg-zinc-800" />
               </div>
 
               {report.notes && (
                 <div className="mt-10 p-6 bg-stone-50 rounded-2xl border border-stone-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">Technical Observations</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-2">{t('qc.technicalObservations')}</p>
                   <p className="text-xs text-stone-600 leading-relaxed italic">"{report.notes}"</p>
                 </div>
               )}

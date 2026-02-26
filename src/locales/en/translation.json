@@ -1,0 +1,283 @@
+{
+  "nav": {
+    "title": "Green Coffee ERP",
+    "coffeeJourney": "Coffee Journey",
+    "allocation": "Allocation",
+    "qcReports": "QC Reports",
+    "dataEntry": "Data Entry",
+    "adminConsole": "Admin Console",
+    "unlocked": "Unlocked",
+    "locked": "Locked",
+    "admin": "Admin"
+  },
+  "journey": {
+    "title": "Trace the",
+    "titleBold": "Journey",
+    "subtitle": "Live Traceability Engine",
+    "inventoryDeployment": "Inventory Deployment",
+    "selectContract": "Select Contract",
+    "activeOperations": "ACTIVE OPERATIONS",
+    "completedShipments": "COMPLETED SHIPMENTS",
+    "status": "Status",
+    "salePrice": "Sale Price",
+    "totalWeight": "Total Weight",
+    "varieties": "Varieties",
+    "addLogisticsCost": "Add Logistics Cost",
+    "moveTo": "Move to",
+    "historicalRecord": "Historical Record",
+    "contractFulfilled": "Contract fulfilled. Inventory cleared.",
+    "totalLandedValue": "Total Landed Value (Avg/KG)",
+    "farmLedger": "Farm + Ledger",
+    "ops": "Ops"
+  },
+  "allocation": {
+    "title": "Smart",
+    "titleBold": "Allocation",
+    "weight": "Weight (kg)",
+    "variety": "Variety",
+    "all": "All",
+    "minQualityScore": "Min Quality Score",
+    "flavorSearch": "Flavor/Note Search",
+    "assignClient": "Assign to Client",
+    "selectClient": "-- Select Client --",
+    "agreedSalePrice": "Agreed Sale Price ($/kg)",
+    "findOptions": "Find Allocation Options",
+    "searching": "Searching Engine...",
+    "trueCost": "True Cost",
+    "bags": "Bags",
+    "includedBags": "Included Bags Preview",
+    "noQc": "No QC",
+    "generateContract": "Generate Contract",
+    "warehouseIntake": "Warehouse Intake",
+    "available": "Available",
+    "selected": "Selected",
+    "allocated": "Allocated",
+    "applyGravity": "Apply Gravity",
+    "pendingQc": "PENDING QC",
+    "quality": "Quality"
+  },
+  "qc": {
+    "title": "QC",
+    "titleBold": "Calibration",
+    "subtitle": "Sensory Analysis & Quality Mapping",
+    "farmName": "Farm Name",
+    "allFarms": "All Farms",
+    "leadCupper": "Lead Cupper",
+    "allCuppers": "All Cuppers",
+    "lotIdentifier": "Lot Identifier",
+    "allLots": "All Lots",
+    "resetFilters": "Reset Filters",
+    "verified": "Verified",
+    "originDetails": "Origin Details",
+    "analyzedBy": "Analyzed by",
+    "systemAnalyst": "System Analyst",
+    "flavorNotes": "Flavor Notes",
+    "process": "Process",
+    "harvestDate": "Harvest Date",
+    "cuppingDate": "Cupping Date",
+    "finalTotalScore": "Final Total Score",
+    "sensoryProfile": "Sensory Profile",
+    "fragrance": "Fragrance/Aroma",
+    "flavor": "Flavor",
+    "aftertaste": "Aftertaste",
+    "acidity": "Acidity",
+    "body": "Body",
+    "balance": "Balance",
+    "uniformity": "Uniformity",
+    "cleanCup": "Clean Cup",
+    "sweetness": "Sweetness",
+    "overall": "Overall",
+    "technicalObservations": "Technical Observations"
+  },
+  "entry": {
+    "title": "Data Entry & Warehouse Intake",
+    "tabs": {
+      "producer": "Producer",
+      "farm": "Farm",
+      "buyCoffee": "Buy Coffee",
+      "costLedger": "Cost Ledger",
+      "cupping": "Cupping",
+      "client": "Client"
+    },
+    "producer": {
+      "title": "New Producer",
+      "subtitle": "Supply Chain Entity Registration",
+      "legalName": "Legal Name *",
+      "relationshipType": "Relationship Type *",
+      "submit": "Authorize & Register Producer"
+    },
+    "farm": {
+      "title": "Farm Registration",
+      "selectProducer": "Select Producer *",
+      "farmName": "Farm Name *",
+      "altitude": "Altitude (m)",
+      "region": "Region *",
+      "location": "Location *",
+      "submit": "Add Farm"
+    },
+    "buyCoffee": {
+      "title": "Inventory Intake",
+      "subtitle": "Standard 69kg Bag Calibration",
+      "sourceFarm": "Source Farm *",
+      "variety": "Variety *",
+      "process": "Process *",
+      "approxWeight": "Approx Weight (kg) *",
+      "harvestDate": "Harvest Date",
+      "calibrationWarning": "Calibration Warning",
+      "roundingTo": "Rounding to",
+      "bags": "bags",
+      "baseFarmCost": "Base Farm Cost ($/kg) *",
+      "submit": "Authorize Purchase & Generate Bags"
+    },
+    "costLedger": {
+      "title": "Operations Ledger",
+      "subtitle": "Post-Harvest Cost Attribution",
+      "targetLot": "Target Coffee Lot *",
+      "selectLot": "Select Lot",
+      "costCategory": "Cost Category *",
+      "amount": "Amount (USD) *",
+      "notes": "Notes / Description",
+      "submit": "Authorize Expense & Update Lot Value"
+    },
+    "client": {
+      "title": "Client Onboarding",
+      "subtitle": "Global Distribution Records",
+      "legalName": "Legal Name *",
+      "relationship": "Relationship *",
+      "country": "Country",
+      "port": "Port",
+      "city": "City *",
+      "submit": "Authorize & Register Client"
+    },
+    "cupping": {
+      "title": "SCAA",
+      "titleBold": "Scoresheet",
+      "subtitle": "Sensory Calibration",
+      "finalScore": "Final Score",
+      "leadAnalyst": "Lead Analyst / Cupper Name *",
+      "sampleLot": "Sample Lot Selection *",
+      "pendingAnalyst": "Pending Analyst...",
+      "noDefects": "No Defects",
+      "taint": "Taint (-2)",
+      "fault": "Fault (-4)",
+      "primaryFlavor": "Primary Flavor Notes (Comma Separated)",
+      "flavorPlaceholder": "e.g. Jasmine, Honey, Lemon",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional details about mouthfeel, cooling, or roast profile...",
+      "submit": "Authenticate & Save Analysis"
+
+    }
+  },
+  "map": {
+    "logisticsNode": "Logistics Node"
+  },
+  "stepper": {
+    "timeline": "Value Chain Timeline",
+    "steps": {
+      "farm": {
+        "name": "Farm Gate",
+        "desc": "Origin Base Cost"
+      },
+      "warehouse": {
+        "name": "Warehouse",
+        "desc": "At Cora Warehouse"
+      },
+      "export": {
+        "name": "Export",
+        "desc": "Ready for Shipping"
+      },
+      "import": {
+        "name": "Import",
+        "desc": "Arrived at Destination"
+      },
+      "client": {
+        "name": "Client",
+        "desc": "Delivered to Roastery"
+      }
+    }
+  },
+  "dev": {
+    "title": "Dev HUD",
+    "subtitle": "Data Control",
+    "console": "Management Console V2",
+    "sync": "Sync Geodata",
+    "clean": "Clean",
+    "backup": "Backup",
+    "restore": "Restore",
+    "tabs": {
+      "producers": "Producers",
+      "clients": "Clients",
+      "farms": "Farms",
+      "lots": "Lots",
+      "bags": "Bags",
+      "contracts": "Contracts",
+      "costLedger": "Cost Ledger",
+      "cuppingSessions": "Cupping Sessions",
+      "valueChain": "Value Chain",
+      "geo": "GEO"
+    },
+    "actions": "Actions",
+    "noData": "No Data in",
+    "restricted": "RESTRICTED ACCESS AREA",
+    "unlock": "Use Toggle Switch to Unlock Console"
+  },
+  "alerts": {
+    "success": {
+      "producerRegistered": "Successful: Producer \"{{name}}\" registered.",
+      "farmRegistered": "Successful: Farm registered.",
+      "lotRegistered": "Successful: {{weight}}kg of {{variety}} registered.",
+      "costRegistered": "Successful: {{type}} cost registered.",
+      "clientRegistered": "Successful: Client \"{{name}}\" registered.",
+      "gravityApplied": "Shelves are already consolidated. No floating bags detected.",
+      "contractGenerated": "Contract Generated! ID: {{id}}\nSale Price: ${{price}}/kg",
+      "scoresheetSaved": "Successful: Scoresheet Synchronized.",
+      "dbRestored": "Database restored!",
+      "dataCleared": "Transactional data cleared.",
+      "simulationComplete": "Successful: Simulation Complete!\n\nCheck Console for full report.\n3 Contracts generated and staged."
+    },
+    "error": {
+      "registration": "Registration Error: {{message}}",
+      "intake": "Intake Error: {{message}}",
+      "ledger": "Ledger Error: {{message}}",
+      "generic": "Error: {{message}}",
+      "noOptions": "No allocation options found. Please adjust your criteria (e.g., lower the Min Quality Score or clear the Variety filter).",
+      "dbUpdate": "Error updating database: {{message}}",
+      "exportFailed": "Export failed: {{message}}",
+      "restoreFailed": "Restoration failed: {{message}}",
+      "cleanFailed": "Clean failed: {{message}}",
+      "deleteFailed": "Delete Failed: {{message}}",
+      "simulationFailed": "Simulation Failed: {{message}}"
+    },
+    "confirm": {
+      "generateContract": "Generate contract for Client: {{name}} at ${{price}}/kg?",
+      "softClean": "SOFT CLEAN: This will clear all transactional data (Lots, Bags, Contracts) but keep Producers and Farms. Proceed?",
+      "forceDelete": "FORCE DELETE from {{table}}? (This will also delete all associated child records)"
+    },
+    "sync": {
+      "starting": "Starting Geodata Sync...",
+      "complete": "Sync Complete! {{total}} locations mapped.",
+      "failed": "Sync Failed: {{message}}"
+    }
+  },
+  "validation": {
+    "producerNameRequired": "Producer Name is required.",
+    "missingFarmFields": "Missing Fields: Producer, Farm Name, Region, and Location are required.",
+    "missingIntakeData": "Missing Data: All required fields (*) must be filled.",
+    "selectLot": "Please select a Coffee Lot.",
+    "invalidAmount": "Please enter a valid Amount in USD.",
+    "clientNameRequired": "Client Name is required.",
+    "cityRequired": "Destination City is required.",
+    "selectClient": "Please select a Client to generate the contract.",
+    "invalidSalePrice": "Please enter a valid Agreed Sale Price ($/kg).",
+    "noBagsSelected": "No bags selected.",
+    "cupperRequired": "Cupper Name is required.",
+    "lotRequired": "Please select a lot."
+  },
+  "common": {
+    "processing": "Processing...",
+    "empty": "Empty",
+    "edit": "Edit",
+    "selectFarm": "Select Farm",
+    "selectLot": "Select Lot"
+  }
+}

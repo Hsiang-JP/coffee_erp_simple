@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { execute, deleteRow, exportDatabase, importDatabase, wrapInTransaction } from '../db/dbSetup';
 import { syncAllDatabaseLocations } from '../utils/geoAgent';
+import { useTranslation } from 'react-i18next';
 
 export function useDevData() {
+  const { t } = useTranslation();
   const triggerRefresh = useStore((state) => state.triggerRefresh);
   const refreshTrigger = useStore((state) => state.refreshTrigger);
   const isDevMode = useStore((state) => state.isDevMode);
@@ -45,13 +47,13 @@ export function useDevData() {
 
   const handleSync = async () => {
     setIsSyncing(true);
-    setSyncStatus("Starting Geodata Sync...");
+    setSyncStatus(t('alerts.sync.starting'));
     try {
       const total = await syncAllDatabaseLocations((msg) => setSyncStatus(msg));
-      setSyncStatus(`Sync Complete! ${total} locations mapped.`);
+      setSyncStatus(t('alerts.sync.complete', { total }));
       triggerRefresh(); 
     } catch (err) {
-      setSyncStatus(`Sync Failed: ${err.message}`);
+      setSyncStatus(t('alerts.sync.failed', { message: err.message }));
     } finally {
       setIsSyncing(false);
       setTimeout(() => setSyncStatus(null), 5000);
@@ -69,7 +71,7 @@ export function useDevData() {
       a.download = `coffee_erp_backup_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) { alert("Export failed: " + err.message); } 
+    } catch (err) { alert(t('alerts.error.exportFailed', { message: err.message })); } 
     finally { setIsExporting(false); }
   };
 
@@ -79,15 +81,15 @@ export function useDevData() {
     reader.onload = async (event) => {
       try {
         await importDatabase(event.target.result);
-        alert("Database restored!");
+        alert(t('alerts.success.dbRestored'));
         triggerRefresh();
-      } catch (err) { alert("Restoration failed: " + err.message); }
+      } catch (err) { alert(t('alerts.error.restoreFailed', { message: err.message })); }
     };
     reader.readAsText(file);
   };
 
   const handleClean = async () => {
-    if (!confirm("SOFT CLEAN: This will clear all transactional data (Lots, Bags, Contracts) but keep Producers and Farms. Proceed?")) return;
+    if (!confirm(t('alerts.confirm.softClean'))) return;
     try {
       await wrapInTransaction(async () => {
         // Soft clean: clear transactional data only
@@ -95,19 +97,19 @@ export function useDevData() {
         for (const table of tables) { await execute(`DELETE FROM ${table}`); }
         try { await execute("DELETE FROM sqlite_sequence"); } catch (e) {}
       });
-      alert("Transactional data cleared.");
+      alert(t('alerts.success.dataCleared'));
       triggerRefresh();
-    } catch (err) { alert("Clean failed: " + err.message); }
+    } catch (err) { alert(t('alerts.error.cleanFailed', { message: err.message })); }
   };
 
   const handleDelete = async (table, id) => {
-    if (!confirm(`FORCE DELETE from ${table}? (This will also delete all associated child records)`)) return;
+    if (!confirm(t('alerts.confirm.forceDelete', { table }))) return;
     try {
       await deleteRow(table, id);
       triggerRefresh();
     } catch (e) { 
       console.error("Delete Failed:", e);
-      alert("Delete Failed: " + e.message); 
+      alert(t('alerts.error.deleteFailed', { message: e.message })); 
     }
   };
 

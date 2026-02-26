@@ -3,8 +3,10 @@ import { allocateBags } from '../utils/allocation';
 import { useStore } from '../store/store';
 import { finalizeAllocation } from '../db/services/allocationService';
 import { getInventory, getClients, applyGravity } from '../db/services/inventoryService';
+import { useTranslation } from 'react-i18next';
 
 const Allocation = () => {
+  const { t } = useTranslation();
   const { lots, refreshTrigger, fetchAll } = useStore();
   
   // Base State
@@ -86,7 +88,7 @@ const Allocation = () => {
       setSelectedIndex(0); 
       
       if (generatedOptions.length === 0) {
-        alert("No allocation options found. Please adjust your criteria (e.g., lower the Min Quality Score or clear the Variety filter).");
+        alert(t('alerts.error.noOptions'));
       }
     } catch (err) {
       console.error("Failed to find options:", err);
@@ -103,7 +105,7 @@ const Allocation = () => {
         await loadInventory();
         setResults([]); 
       } else {
-        alert("Shelves are already consolidated. No floating bags detected.");
+        alert(t('alerts.success.gravityApplied'));
       }
     } catch (error) {
       console.error("Gravity failed:", error);
@@ -114,21 +116,21 @@ const Allocation = () => {
 
   const handleFinalizeReservation = async () => {
     if (!reqs.clientId) {
-      alert('Please select a Client to generate the contract.');
+      alert(t('validation.selectClient'));
       return;
     }
     if (!reqs.salePrice || parseFloat(reqs.salePrice) <= 0) {
-      alert('Please enter a valid Agreed Sale Price ($/kg).');
+      alert(t('validation.invalidSalePrice'));
       return;
     }
     if (selectedBags.length === 0) {
-      alert('No bags selected.');
+      alert(t('validation.noBagsSelected'));
       return;
     }
 
     const clientName = clients.find(c => c.id === reqs.clientId)?.name || reqs.clientId;
 
-    if (window.confirm(`Generate contract for Client: ${clientName} at $${reqs.salePrice}/kg?`)) {
+    if (window.confirm(t('alerts.confirm.generateContract', { name: clientName, price: reqs.salePrice }))) {
       try {
         setLoading(true);
         const result = await finalizeAllocation(reqs.clientId, selectedBags, { 
@@ -137,13 +139,13 @@ const Allocation = () => {
         });
         
         if (result.success) {
-          alert(`Contract Generated! ID: ${result.publicId}\nSale Price: $${result.salePricePerKg.toFixed(2)}/kg`);
+          alert(t('alerts.success.contractGenerated', { id: result.publicId, price: result.salePricePerKg.toFixed(2) }));
           setResults([]); 
           await loadInventory(); 
           await fetchAll(); 
         }
       } catch (error) {
-        alert(`Error: ${error.message}`);
+        alert(t('alerts.error.generic', { message: error.message }));
       } finally {
         setLoading(false);
       }
@@ -195,15 +197,15 @@ const Allocation = () => {
                     </div>
 
                     <div className="flex justify-between border-t border-zinc-800 pt-3 text-[9px] font-black uppercase text-stone-500">
-                      <span>True Cost</span>
+                      <span>{t('allocation.trueCost')}</span>
                       <span className="text-emerald-400 font-mono font-bold">
                         ${hoveredBag.current_per_kg_cost?.toFixed(2)}/kg
                       </span>
                     </div>
                     <div className="flex justify-between mt-1 text-[9px] font-black uppercase text-stone-500">
-                      <span>Quality</span>
+                      <span>{t('allocation.quality')}</span>
                       <span className={hoveredBag.quality_score ? "text-white" : "text-amber-400 font-bold"}>
-                        {hoveredBag.quality_score ? hoveredBag.quality_score : "PENDING QC"}
+                        {hoveredBag.quality_score ? hoveredBag.quality_score : t('allocation.pendingQc')}
                       </span>
                     </div>
                     
@@ -217,7 +219,7 @@ const Allocation = () => {
         </div>
       ))}
     </div>
-  ), [stockCodeMap, selectedBags, hoveredBag]);
+  ), [stockCodeMap, selectedBags, hoveredBag, t]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 p-8 bg-[#F9F7F2] min-h-screen font-sans">
@@ -238,21 +240,21 @@ const Allocation = () => {
       {/* --- Sidebar UI --- */}
       <aside className="w-full lg:w-96 space-y-6 flex-shrink-0">
         <header className="mb-8">
-          <h1 className="text-3xl font-light tracking-tight">Smart <span className="font-bold">Allocation</span></h1>
+          <h1 className="text-3xl font-light tracking-tight">{t('allocation.title')} <span className="font-bold">{t('allocation.titleBold')}</span></h1>
         </header>
         
         <div className="bg-white p-6 rounded-[2rem] border border-stone-100 shadow-sm space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Weight (kg)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.weight')}</label>
               <input type="number" value={reqs.requiredWeight} placeholder="kg" 
                 className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-bold"
                 onChange={e => setReqs({...reqs, requiredWeight: e.target.value})}/>
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Variety</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.variety')}</label>
               <select value={reqs.variety} onChange={e => setReqs({...reqs, variety: e.target.value})} className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-bold text-sm">
-                <option value="">All</option>
+                <option value="">{t('allocation.all')}</option>
                 {[...new Set((lots || []).map(l => l?.variety))].filter(Boolean).sort().map(v => (
                   <option key={v} value={v}>{v}</option>
                 ))}
@@ -261,23 +263,23 @@ const Allocation = () => {
           </div>
           
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Min Quality Score: {reqs.minScore}</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.minQualityScore')}: {reqs.minScore}</label>
             <input type="range" min="80" max="95" step="0.5" value={reqs.minScore} className="w-full accent-zinc-900" onChange={e => setReqs({...reqs, minScore: e.target.value})}/>
           </div>
           
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Flavor/Note Search</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.flavorSearch')}</label>
             <input type="text" value={reqs.flavorNote} placeholder="e.g. Citrus, Honey" className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-medium text-sm" onChange={e => setReqs({...reqs, flavorNote: e.target.value})}/>
           </div>
           
           <div className="pt-4 border-t border-stone-100">
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Assign to Client</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.assignClient')}</label>
             <select 
               value={reqs.clientId} 
               onChange={e => setReqs({...reqs, clientId: e.target.value})}
               className="w-full p-4 bg-stone-50 rounded-2xl outline-none font-bold text-sm text-zinc-800 transition-all focus:ring-2 focus:ring-stone-200"
             >
-              <option value="">-- Select Client --</option>
+              <option value="">{t('allocation.selectClient')}</option>
               {clients.map(client => (
                 <option key={client.id} value={client.id}>{client.name}</option>
               ))}
@@ -285,7 +287,7 @@ const Allocation = () => {
           </div>
 
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Agreed Sale Price ($/kg)</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('allocation.agreedSalePrice')}</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
               <input 
@@ -305,7 +307,7 @@ const Allocation = () => {
             disabled={loading} 
             className="w-full bg-zinc-900 text-white p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-colors active:scale-95"
           >
-            {loading ? "Searching Engine..." : "Find Allocation Options"}
+            {loading ? t('allocation.searching') : t('allocation.findOptions')}
           </button>
         </div>
 
@@ -315,14 +317,14 @@ const Allocation = () => {
               <button onClick={() => setSelectedIndex(i)} className="w-full text-left">
                 <p className="text-[10px] font-black uppercase text-stone-400">{opt.strategyName}</p>
                 <div className="flex justify-between items-baseline mt-1">
-                  <h3 className="text-2xl font-black">${opt.summary.avgCost.toFixed(2)}<span className="text-xs text-stone-400 font-medium">/kg True Cost</span></h3>
-                  <span className="text-[10px] font-bold text-stone-500 uppercase">{opt.bags.length} Bags</span>
+                  <h3 className="text-2xl font-black">${opt.summary.avgCost.toFixed(2)}<span className="text-xs text-stone-400 font-medium">/kg {t('allocation.trueCost')}</span></h3>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase">{opt.bags.length} {t('allocation.bags')}</span>
                 </div>
               </button>
               
               {selectedIndex === i && (
                 <div className="mt-5 space-y-3 border-t border-stone-100 pt-5 animate-in slide-in-from-top-2 duration-300">
-                  <h4 className="text-[9px] font-black uppercase text-stone-400 tracking-widest">Included Bags Preview</h4>
+                  <h4 className="text-[9px] font-black uppercase text-stone-400 tracking-widest">{t('allocation.includedBags')}</h4>
                   
                   <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {opt.bags.map(bag => (
@@ -333,7 +335,7 @@ const Allocation = () => {
                         </div>
                         <div className="text-right">
                           <span className="font-mono text-emerald-600 font-bold text-xs block">${bag.current_per_kg_cost?.toFixed(2)}/kg</span>
-                          <span className="text-[9px] font-bold text-amber-500">{bag.quality_score ? bag.quality_score + ' pts' : 'No QC'}</span>
+                          <span className="text-[9px] font-bold text-amber-500">{bag.quality_score ? bag.quality_score + ' pts' : t('allocation.noQc')}</span>
                         </div>
                       </div>
                     ))}
@@ -344,7 +346,7 @@ const Allocation = () => {
                     disabled={loading}
                     className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-200"
                   >
-                    Generate Contract
+                    {t('allocation.generateContract')}
                   </button>
                 </div>
               )}
@@ -358,7 +360,7 @@ const Allocation = () => {
         
         <div className="flex justify-between items-center mb-16 border-b border-stone-50 pb-8">
           <div>
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter">Warehouse <span className="text-stone-300">Intake</span></h2>
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t('allocation.warehouseIntake').split(' ')[0]} <span className="text-stone-300">{t('allocation.warehouseIntake').split(' ')[1]}</span></h2>
           </div>
           
           <div className="flex items-center gap-6">
@@ -366,17 +368,17 @@ const Allocation = () => {
             <div className="flex bg-stone-50 p-1.5 rounded-2xl border border-stone-100 shadow-inner items-center gap-2">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
                 <div className="w-2.5 h-2.5 bg-zinc-900 rounded-full"></div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">Available</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">{t('allocation.available')}</span>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
                 <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm shadow-emerald-200"></div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Selected</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">{t('allocation.selected')}</span>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-stone-100">
                 <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm shadow-blue-200"></div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">Allocated</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">{t('allocation.allocated')}</span>
               </div>
             </div>
             
@@ -385,7 +387,7 @@ const Allocation = () => {
               disabled={loading}
               className="flex items-center gap-2 bg-stone-100 hover:bg-stone-200 text-zinc-900 py-2.5 px-4 rounded-xl font-bold uppercase text-[9px] tracking-widest transition-all active:scale-95"
             >
-              ⬇️ Apply Gravity
+              ⬇️ {t('allocation.applyGravity')}
             </button>
           </div>
         </div>

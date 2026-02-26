@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStore } from '../store/store';
 import { createCuppingSession } from '../db/services/cuppingService';
 
@@ -23,11 +24,15 @@ const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
       <input 
         type="text"
         placeholder={placeholder}
-        value={isOpen ? search : (options.find(o => o.id === value)?.name || search || value)}
-        onFocus={() => { setIsOpen(true); setSearch(''); }}
+        value={isOpen ? search : (options.find(o => o.id === value)?.name || value)}
+        onFocus={() => { setIsOpen(true); setSearch(value); }}
         onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full bg-stone-50 border border-stone-100 rounded-xl p-4 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
+        onChange={(e) => {
+          const val = e.target.value;
+          setSearch(val);
+          onChange(val); // 🚨 KEY FIX: Syncs immediately as user types
+        }}
+        className="w-full bg-stone-50 border border-stone-100 rounded-xl p-4 text-sm font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm" 
       />
       {isOpen && (
         <div className="absolute top-full left-0 w-full mt-2 bg-white border border-stone-100 rounded-2xl shadow-xl z-50 max-h-40 overflow-y-auto p-2">
@@ -78,6 +83,7 @@ const CupGrid = ({ label, field, cups, toggleCup }) => (
 );
 
 const SCAACuppingForm = React.memo(() => {
+  const { t } = useTranslation();
   const { lots, farms, cuppingReports, triggerRefresh } = useStore(); 
   
   const [formData, setFormData] = useState({
@@ -96,8 +102,8 @@ const SCAACuppingForm = React.memo(() => {
     sweetness_cups: '1,1,1,1,1',
     defect_type: 'None',
     defect_cups: 0,
-    notes: '',
-    primary_flavor_note: ''
+    notes: '',                  
+    primary_flavor_note: ''     
   });
 
   const cupperOptions = useMemo(() => {
@@ -105,7 +111,6 @@ const SCAACuppingForm = React.memo(() => {
     return existingNames.filter(Boolean).sort().map(name => ({ id: name, name: name }));
   }, [cuppingReports]);
 
-  // 🛠️ FIX FOR THE BROKEN IMAGE LABELS
   const lotOptions = useMemo(() => {
     return lots.map(lot => {
       const farm = farms.find(f => f.id === lot.farm_id);
@@ -118,7 +123,6 @@ const SCAACuppingForm = React.memo(() => {
     });
   }, [lots, farms]);
 
-  // --- NEW: Derive selected lot details for the UI Card ---
   const selectedLotDetails = useMemo(() => {
     if (!formData.lot_id) return null;
     const lot = lots.find(l => l.id === formData.lot_id);
@@ -148,11 +152,16 @@ const SCAACuppingForm = React.memo(() => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.cupper_name) return alert("Cupper Name is required.");
-    if (!formData.lot_id) return alert("Please select a lot.");
+    
+    // 🚨 KEY FIX: Trim to catch empty strings or spaces
+    const cleanCupperName = formData.cupper_name?.trim();
+    
+    if (!cleanCupperName) return alert(t('validation.cupperRequired'));
+    if (!formData.lot_id) return alert(t('validation.lotRequired'));
 
     await createCuppingSession({
       ...formData,
+      cupper_name: cleanCupperName, // Use the cleaned name
       id: `cup-${Date.now()}`,
       public_id: `QC-${String(Date.now()).slice(-4)}`,
       score_uniformity: scores.uniScore,
@@ -163,7 +172,7 @@ const SCAACuppingForm = React.memo(() => {
       final_score: scores.final
     });
 
-    alert("Successful: Scoresheet Synchronized.");
+    alert(t('alerts.success.scoresheetSaved'));
     triggerRefresh();
   };
 
@@ -171,31 +180,31 @@ const SCAACuppingForm = React.memo(() => {
     <form onSubmit={handleSubmit} className="max-w-5xl mx-auto p-10 bg-white rounded-[3rem] shadow-2xl border border-stone-100 text-zinc-900">
       <div className="flex justify-between items-start mb-12 border-b border-stone-50 pb-8">
         <div>
-          <h2 className="text-4xl font-black italic tracking-tighter uppercase">SCAA <span className="text-zinc-400">Scoresheet</span></h2>
-          <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-stone-400 mt-2">Sensory Calibration</p>
+          <h2 className="text-4xl font-black italic tracking-tighter uppercase">{t('entry.cupping.title', 'SCAA')} <span className="text-zinc-400">{t('entry.cupping.titleBold', 'Scoresheet')}</span></h2>
+          <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-stone-400 mt-2">{t('entry.cupping.subtitle', 'Sensory Calibration')}</p>
         </div>
         <div className="text-right">
-          <span className="text-[10px] font-black uppercase tracking-widest text-stone-300 block">Final Score</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-stone-300 block">{t('entry.cupping.finalScore', 'Final Score')}</span>
           <span className="text-7xl font-black text-emerald-500 leading-none">{scores.final.toFixed(2)}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+        {/* LEFT COLUMN: Numerical Sliders & Logistics */}
         <div className="space-y-8">
           <div className="grid grid-cols-2 gap-6">
-            <Slider label="Fragrance" name="score_fragrance" value={formData.score_fragrance} onChange={e => setFormData({...formData, score_fragrance: e.target.value})} />
-            <Slider label="Flavor" name="score_flavor" value={formData.score_flavor} onChange={e => setFormData({...formData, score_flavor: e.target.value})} />
-            <Slider label="Aftertaste" name="score_aftertaste" value={formData.score_aftertaste} onChange={e => setFormData({...formData, score_aftertaste: e.target.value})} />
-            <Slider label="Acidity" name="score_acidity" value={formData.score_acidity} onChange={e => setFormData({...formData, score_acidity: e.target.value})} />
-            <Slider label="Body" name="score_body" value={formData.score_body} onChange={e => setFormData({...formData, score_body: e.target.value})} />
-            <Slider label="Balance" name="score_balance" value={formData.score_balance} onChange={e => setFormData({...formData, score_balance: e.target.value})} />
-            <div className="col-span-2"><Slider label="Overall" name="score_overall" value={formData.score_overall} onChange={e => setFormData({...formData, score_overall: e.target.value})} /></div>
+            <Slider label={t('qc.fragrance', 'Fragrance')} name="score_fragrance" value={formData.score_fragrance} onChange={e => setFormData({...formData, score_fragrance: e.target.value})} />
+            <Slider label={t('qc.flavor', 'Flavor')} name="score_flavor" value={formData.score_flavor} onChange={e => setFormData({...formData, score_flavor: e.target.value})} />
+            <Slider label={t('qc.aftertaste', 'Aftertaste')} name="score_aftertaste" value={formData.score_aftertaste} onChange={e => setFormData({...formData, score_aftertaste: e.target.value})} />
+            <Slider label={t('qc.acidity', 'Acidity')} name="score_acidity" value={formData.score_acidity} onChange={e => setFormData({...formData, score_acidity: e.target.value})} />
+            <Slider label={t('qc.body', 'Body')} name="score_body" value={formData.score_body} onChange={e => setFormData({...formData, score_body: e.target.value})} />
+            <Slider label={t('qc.balance', 'Balance')} name="score_balance" value={formData.score_balance} onChange={e => setFormData({...formData, score_balance: e.target.value})} />
+            <div className="col-span-2"><Slider label={t('qc.overall', 'Overall')} name="score_overall" value={formData.score_overall} onChange={e => setFormData({...formData, score_overall: e.target.value})} /></div>
           </div>
           
           <div className="pt-8 border-t border-stone-100 space-y-6">
-            {/* 1. Cupper Name Moved to Top */}
             <Combobox 
-              label="Lead Analyst / Cupper Name *" 
+              label={t('entry.cupping.leadAnalyst', 'Lead Analyst / Cupper Name *')} 
               placeholder="Search or add cupper..." 
               options={cupperOptions} 
               value={formData.cupper_name}
@@ -203,55 +212,42 @@ const SCAACuppingForm = React.memo(() => {
               onAdd={name => setFormData({...formData, cupper_name: name})} 
             />
 
-            {/* 2. Lot Selection Moved Below */}
             <div>
-               <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">Sample Lot Selection *</label>
+               <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.cupping.sampleLot', 'Sample Lot Selection *')}</label>
                <select 
                  value={formData.lot_id} 
                  onChange={e => setFormData({...formData, lot_id: e.target.value})} 
                  className="w-full bg-stone-50 border border-stone-100 rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
                >
-                 <option value="">Select Lot</option>
+                 <option value="">{t('common.selectLot')}</option>
                  {lotOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                </select>
             </div>
 
-            {/* 3. DYNAMIC CONTEXT CARD */}
             {selectedLotDetails && (
               <div className="relative mt-6 p-6 bg-zinc-950 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-                {/* Visual Flair */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                
-                {/* 1. Farm (Highest Importance) */}
-                <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1">Origin Details</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-1">{t('qc.originDetails', 'Origin Details')}</p>
                 <h4 className="text-2xl font-black text-white italic mb-1">{selectedLotDetails.farm_name}</h4>
-                
-                {/* 2. Cupper Name (Live Reflection) */}
                 <p className="text-sm font-bold text-emerald-400 mb-6 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Analyzed by: {formData.cupper_name || 'Pending Analyst...'}
+                  {t('qc.analyzedBy', 'Analyzed by')}: {formData.cupper_name || t('entry.cupping.pendingAnalyst', 'Pending Analyst...')}
                 </p>
-
-                {/* Grid for remaining details */}
                 <div className="grid grid-cols-2 gap-4 border-t border-zinc-800 pt-4">
-                  {/* 3. Variety */}
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">Variety</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">{t('allocation.variety', 'Variety')}</span>
                     <span className="text-xs font-bold text-stone-300">{selectedLotDetails.variety || 'N/A'}</span>
                   </div>
-                  {/* 4. Process */}
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">Process</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">{t('qc.process', 'Process')}</span>
                     <span className="text-xs font-bold text-stone-300">{selectedLotDetails.process_method || 'N/A'}</span>
                   </div>
-                  {/* 5. Harvest Date */}
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">Harvest Date</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">{t('qc.harvestDate', 'Harvest Date')}</span>
                     <span className="text-xs font-bold text-stone-300">{selectedLotDetails.harvest_date || 'N/A'}</span>
                   </div>
-                  {/* 6. Cupping Date */}
                   <div>
-                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">Cupping Date</span>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-stone-500 block mb-0.5">{t('qc.cuppingDate', 'Cupping Date')}</span>
                     <span className="text-xs font-bold text-stone-300">{formData.cupping_date}</span>
                   </div>
                 </div>
@@ -260,25 +256,52 @@ const SCAACuppingForm = React.memo(() => {
           </div>
         </div>
 
+        {/* RIGHT COLUMN: Cups, Defects, and Qualitative Notes */}
         <div className="space-y-10">
-          <CupGrid label="Uniformity" field="uniformity_cups" cups={formData.uniformity_cups} toggleCup={toggleCup} />
-          <CupGrid label="Clean Cup" field="clean_cup_cups" cups={formData.clean_cup_cups} toggleCup={toggleCup} />
-          <CupGrid label="Sweetness" field="sweetness_cups" cups={formData.sweetness_cups} toggleCup={toggleCup} />
+          <CupGrid label={t('qc.uniformity', 'Uniformity')} field="uniformity_cups" cups={formData.uniformity_cups} toggleCup={toggleCup} />
+          <CupGrid label={t('qc.cleanCup', 'Clean Cup')} field="clean_cup_cups" cups={formData.clean_cup_cups} toggleCup={toggleCup} />
+          <CupGrid label={t('qc.sweetness', 'Sweetness')} field="sweetness_cups" cups={formData.sweetness_cups} toggleCup={toggleCup} />
+          
           <div className="p-8 bg-red-50 rounded-[2rem] border border-red-100">
             <div className="flex gap-4">
               <select value={formData.defect_type} onChange={e => setFormData({...formData, defect_type: e.target.value})} className="flex-1 bg-white border-none rounded-xl p-3 text-sm font-bold text-red-600 outline-none focus:ring-2 focus:ring-red-200">
-                <option value="None">No Defects</option>
-                <option value="Taint">Taint (-2)</option>
-                <option value="Fault">Fault (-4)</option>
+                <option value="None">{t('entry.cupping.noDefects', 'No Defects')}</option>
+                <option value="Taint">{t('entry.cupping.taint', 'Taint (-2)')}</option>
+                <option value="Fault">{t('entry.cupping.fault', 'Fault (-4)')}</option>
               </select>
               <input type="number" min="0" max="5" value={formData.defect_cups} onChange={e => setFormData({...formData, defect_cups: parseInt(e.target.value)})} 
                 className="w-20 bg-white border-none rounded-xl p-3 text-center font-black text-red-600 outline-none focus:ring-2 focus:ring-red-200" />
             </div>
           </div>
+
+          <div className="space-y-6 pt-4 border-t border-stone-100">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.cupping.primaryFlavor', 'Primary Flavor Notes (Comma Separated)')}</label>
+              <input 
+                type="text" 
+                value={formData.primary_flavor_note} 
+                onChange={e => setFormData({...formData, primary_flavor_note: e.target.value})} 
+                placeholder={t('entry.cupping.flavorPlaceholder', 'e.g. Jasmine, Honey, Lemon')}
+                className="w-full bg-stone-50 border border-stone-100 rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
+              />
+            </div>
+            
+            <div>
+              {/* 🚨 RESTORED: This is the exact key your dictionary expects! */}
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.cupping.technicalNotes', 'Technical Observations / Notes')}</label>
+              <textarea 
+                value={formData.notes} 
+                onChange={e => setFormData({...formData, notes: e.target.value})} 
+                placeholder={t('entry.cupping.notesPlaceholder', 'Additional details about mouthfeel, cooling, or roast profile...')}
+                className="w-full bg-stone-50 border border-stone-100 rounded-xl p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm h-28"
+              />
+            </div>
+          </div>
         </div>
       </div>
+      
       <button type="submit" className="w-full mt-12 bg-zinc-900 text-white p-6 rounded-2xl font-black uppercase tracking-[0.5em] hover:bg-black transition-all shadow-xl shadow-stone-200 active:scale-[0.99]">
-        Authenticate & Save Analysis
+        {t('entry.cupping.submit', 'Authenticate & Save Analysis')}
       </button>
     </form>
   );

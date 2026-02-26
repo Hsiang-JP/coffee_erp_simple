@@ -4,8 +4,10 @@ import { getNextStage } from '../db/dbSetup';
 import { useAdvanceStage } from '../hooks/useCoffeeData';
 import CoffeeMap from '../components/CoffeeMap.jsx';
 import CostStepper from '../components/CostStepper.jsx';
+import { useTranslation } from 'react-i18next';
 
 const CoffeeJourney = () => {
+  const { t } = useTranslation();
   const { coffees, contracts, lots, contractMetrics } = useStore();
   const [selectedContractId, setSelectedContractId] = useState('');
   const [costInput, setCostInput] = useState('');
@@ -63,7 +65,7 @@ const CoffeeJourney = () => {
       setCostInput('');
     } catch (e) { 
       console.error("Advance Error:", e);
-      alert("Failed: " + e.message); 
+      alert(t('alerts.error.generic', { message: e.message })); 
     } finally { 
       setIsAdvancing(false); 
     }
@@ -78,13 +80,13 @@ const CoffeeJourney = () => {
       <div className="lg:col-span-4 flex flex-col gap-6">
         <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
           <div className="p-8 bg-zinc-950 text-white">
-            <h2 className="text-2xl font-light tracking-tight">Trace the <span className="font-bold">Journey</span></h2>
-            <p className="text-stone-500 text-[10px] uppercase tracking-widest mt-1">Live Traceability Engine</p>
+            <h2 className="text-2xl font-light tracking-tight">{t('journey.title')} <span className="font-bold">{t('journey.titleBold')}</span></h2>
+            <p className="text-stone-500 text-[10px] uppercase tracking-widest mt-1">{t('journey.subtitle')}</p>
           </div>
 
           <div className="p-8 space-y-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block ml-1">Inventory Deployment</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block ml-1">{t('journey.inventoryDeployment')}</label>
               <select 
                 className={`w-full border-none rounded-xl p-4 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${
                   isFulfilled ? 'bg-stone-200 text-stone-500' : 'bg-stone-100 text-zinc-800'
@@ -92,9 +94,9 @@ const CoffeeJourney = () => {
                 value={selectedContractId}
                 onChange={(e) => setSelectedContractId(e.target.value)}
               >
-                <option value="">Select Contract</option>
+                <option value="">{t('journey.selectContract')}</option>
                 
-                <optgroup label="ACTIVE OPERATIONS" className="text-[10px] font-black text-emerald-600 tracking-widest uppercase">
+                <optgroup label={t('journey.activeOperations')} className="text-[10px] font-black text-emerald-600 tracking-widest uppercase">
                   {contracts
                     .filter(c => c.status === 'Processing')
                     .map(c => (
@@ -105,7 +107,7 @@ const CoffeeJourney = () => {
                   }
                 </optgroup>
 
-                <optgroup label="COMPLETED SHIPMENTS" className="text-[10px] font-black text-stone-400 tracking-widest uppercase">
+                <optgroup label={t('journey.completedShipments')} className="text-[10px] font-black text-stone-400 tracking-widest uppercase">
                   {contracts
                     .filter(c => c.status === 'Fulfilled')
                     .map(c => (
@@ -128,14 +130,14 @@ const CoffeeJourney = () => {
                 <div className={`flex justify-between items-center p-4 rounded-2xl border ${
                   isFulfilled ? 'bg-stone-100 border-stone-200' : 'bg-emerald-50 border-emerald-100'
                 }`}>
-                  <span className={`text-[10px] uppercase font-black tracking-widest ${isFulfilled ? 'text-stone-400' : 'text-emerald-800'}`}>Status</span>
+                  <span className={`text-[10px] uppercase font-black tracking-widest ${isFulfilled ? 'text-stone-400' : 'text-emerald-800'}`}>{t('journey.status')}</span>
                   <span className={`text-xs font-bold ${isFulfilled ? 'text-stone-500' : 'text-emerald-900'}`}>{currentStage}</span>
                 </div>
 
                 {/* Contract Details Section */}
                 <div className="bg-stone-50 p-5 rounded-2xl border border-stone-100 space-y-4">
                   <div className="flex justify-between items-center border-b border-stone-200 pb-3">
-                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">Sale Price</span>
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">{t('journey.salePrice')}</span>
                     <span className="text-sm font-black text-zinc-900">
                       ${(contracts.find(c => c.id === selectedContractId)?.sale_price_per_kg || 0).toFixed(2)}
                       <span className="text-[10px] text-stone-400 font-medium ml-1">/KG</span>
@@ -143,7 +145,7 @@ const CoffeeJourney = () => {
                   </div>
                   
                   <div className="flex justify-between items-center border-b border-stone-200 pb-3">
-                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">Total Weight</span>
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest">{t('journey.totalWeight')}</span>
                     <span className="text-sm font-black text-zinc-900">
                       {metrics?.total_weight || 0}
                       <span className="text-[10px] text-stone-400 font-medium ml-1">KG</span>
@@ -151,7 +153,7 @@ const CoffeeJourney = () => {
                   </div>
                   
                   <div className="space-y-2 pt-1">
-                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest block">Varieties</span>
+                    <span className="text-[9px] uppercase font-black text-stone-400 tracking-widest block">{t('journey.varieties')}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {varieties.map(v => (
                         <span key={v} className="bg-white px-2.5 py-1 rounded-lg text-[10px] font-bold text-zinc-600 border border-stone-200 shadow-sm">
@@ -165,7 +167,7 @@ const CoffeeJourney = () => {
                 {/* Logistics Input - Hidden if Fulfilled */}
                 {nextStage && !isFulfilled && (
                   <div className="space-y-3 pt-2">
-                    <label className="text-[10px] uppercase font-black text-stone-400">Add Logistics Cost (${nextStage})</label>
+                    <label className="text-[10px] uppercase font-black text-stone-400">{t('journey.addLogisticsCost')} (${nextStage})</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
                       <input 
@@ -179,7 +181,7 @@ const CoffeeJourney = () => {
                       onClick={handleAdvance} disabled={isAdvancing}
                       className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {isAdvancing ? 'Processing...' : `Move to ${nextStage}`}
+                      {isAdvancing ? t('common.processing') : `${t('journey.moveTo')} ${nextStage}`}
                     </button>
                   </div>
                 )}
@@ -189,8 +191,8 @@ const CoffeeJourney = () => {
                   <div className="p-4 bg-stone-200 rounded-2xl border border-stone-300 flex items-center gap-3 animate-in fade-in zoom-in-95">
                     <span className="text-xl">🏁</span>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">Historical Record</p>
-                      <p className="text-xs text-stone-600 font-medium">Contract fulfilled. Inventory cleared.</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">{t('journey.historicalRecord')}</p>
+                      <p className="text-xs text-stone-600 font-medium">{t('journey.contractFulfilled')}</p>
                     </div>
                   </div>
                 )}
@@ -200,13 +202,13 @@ const CoffeeJourney = () => {
 
           {/* Ledger Footer */}
           <div className="bg-zinc-950 p-8 text-white">
-            <p className="text-[9px] uppercase tracking-widest text-stone-500 mb-2">Total Landed Value (Avg/KG)</p>
+            <p className="text-[9px] uppercase tracking-widest text-stone-500 mb-2">{t('journey.totalLandedValue')}</p>
             <div className="text-5xl font-mono font-bold text-emerald-400 tracking-tighter">
               ${(metrics?.total_landed || 0).toFixed(2)}
             </div>
             <div className="flex justify-between mt-4 pt-4 border-t border-zinc-800 text-[10px] uppercase font-bold text-stone-500">
-              <span>Farm + Ledger: ${(metrics?.farm_cost || 0).toFixed(2)}</span>
-              <span>Ops: ${(metrics?.ops_cost || 0).toFixed(2)}</span>
+              <span>{t('journey.farmLedger')}: ${(metrics?.farm_cost || 0).toFixed(2)}</span>
+              <span>{t('journey.ops')}: ${(metrics?.ops_cost || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

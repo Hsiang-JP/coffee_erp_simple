@@ -2,8 +2,10 @@ import { execute, seedDataInternal, wrapInTransaction } from '../db/dbSetup';
 import { buyLotTransaction } from '../db/services/lotService';
 import { finalizeAllocation } from '../db/services/allocationService';
 import { advanceContractStage } from '../db/services/contractService';
+import i18next from 'i18next';
 
 export async function runSimulation() {
+  const { t } = i18next;
   console.log("🚀 Starting Full Simulation...");
   const report = {
     producers: [],
@@ -79,9 +81,9 @@ export async function runSimulation() {
     });
 
     console.log("📊 SIMULATION REPORT:", JSON.stringify(report, null, 2));
-    alert("Successful: Simulation Complete!\n\nCheck Console for full report.\n3 Contracts generated and staged.");
+    alert(t('alerts.success.simulationComplete'));
   } catch (e) {
-    alert("Simulation Failed: " + e.message);
+    alert(t('alerts.error.simulationFailed', { message: e.message }));
     console.error(e);
   }
 }

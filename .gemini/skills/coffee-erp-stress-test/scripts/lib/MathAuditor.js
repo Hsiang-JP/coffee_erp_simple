@@ -54,7 +54,7 @@ export class MathAuditor {
   }
 
   /**
-   * Verifies the contract price by recalculating it from constituent bags and lots.
+   * Verifies the contract cost integrity and detects margin issues.
    */
   async verifyContractPrice(contractId) {
     const contractRes = await this.execute(
@@ -66,7 +66,14 @@ export class MathAuditor {
       throw new Error(`Contract ${contractId} not found`);
     }
 
-    const actualPrice = contractRes[0].sale_price_per_kg;
+    const revenuePerKg = contractRes[0].sale_price_per_kg;
+
+    // Get the DB's calculated landed cost from the view
+    const journeyRes = await this.execute(
+      'SELECT total_landed FROM vw_contract_journey WHERE contract_id = ?',
+      [contractId]
+    );
+    const dbLandedCost = journeyRes.length > 0 ? journeyRes[0].total_landed : 0;
 
     const bags = await this.execute(
       'SELECT id, lot_id, weight_kg FROM bags WHERE contract_id = ?',
@@ -76,49 +83,79 @@ export class MathAuditor {
     if (bags.length === 0) {
       return {
         calculated: 0,
-        actual: actualPrice,
-        discrepancy: actualPrice,
-        isMatch: actualPrice === 0
+        actual: dbLandedCost,
+        discrepancy: dbLandedCost,
+        isMatch: dbLandedCost === 0,
+        margin: revenuePerKg
       };
     }
 
-    const uniqueLotIds = [...new Set(bags.map(bag => bag.lot_id))];
-    let totalContractCost = 0;
+    let totalShadowCost = 0;
     let totalContractWeight = 0;
 
+    const uniqueLotIds = [...new Set(bags.map(bag => bag.lot_id))];
+    const lotDataMap = new Map();
+
+    // Pre-fetch lot data (base cost and total ledger)
     for (const lotId of uniqueLotIds) {
       const lotRes = await this.execute(
-        'SELECT base_farm_cost_per_kg FROM lots WHERE id = ?',
+        'SELECT base_farm_cost_per_kg, total_weight_kg FROM lots WHERE id = ?',
         [lotId]
       );
-      
       if (lotRes.length === 0) continue;
-      
-      const baseFarmCost = lotRes[0].base_farm_cost_per_kg;
 
       const ledgerRes = await this.execute(
         'SELECT SUM(amount_usd) as total_additional_cost FROM cost_ledger WHERE lot_id = ?',
         [lotId]
       );
-      const additionalCost = ledgerRes[0].total_additional_cost || 0;
-
-      const weightFromThisLot = bags
-        .filter(bag => bag.lot_id === lotId)
-        .reduce((sum, bag) => sum + bag.weight_kg, 0);
-
-      totalContractCost += (baseFarmCost * weightFromThisLot) + additionalCost;
-      totalContractWeight += weightFromThisLot;
+      
+      lotDataMap.set(lotId, {
+        baseCost: lotRes[0].base_farm_cost_per_kg,
+        totalWeight: lotRes[0].total_weight_kg,
+        ledgerTotal: ledgerRes[0].total_additional_cost || 0
+      });
     }
 
-    const calculatedPrice = totalContractWeight > 0 ? totalContractCost / totalContractWeight : 0;
-    const discrepancy = Math.abs(calculatedPrice - actualPrice);
+    // Calculate shadow cost bag-by-bag for maximum precision
+    for (const bag of bags) {
+      const lot = lotDataMap.get(bag.lot_id);
+      if (!lot) continue;
+
+      // 1. Proportional Ledger Cost Per KG for this lot
+      const ledgerPerKg = lot.totalWeight > 0 ? lot.ledgerTotal / lot.totalWeight : 0;
+
+      // 2. Logistics Cost Per KG for this bag (stored as per-kg in milestones)
+      const milestoneRes = await this.execute(`
+        SELECT 
+          (COALESCE(cost_to_warehouse, 0) + COALESCE(cost_to_export, 0) + 
+           COALESCE(cost_to_import, 0) + COALESCE(cost_to_client, 0)) as per_kg_logistics
+        FROM bag_milestones 
+        WHERE bag_id = ?
+      `, [bag.id]);
+      
+      const logisticsPerKg = milestoneRes.length > 0 ? milestoneRes[0].per_kg_logistics : 0;
+
+      // Total Cost for this bag = (Base + LedgerPerKg + LogisticsPerKg) * BagWeight
+      const bagCost = (lot.baseCost + ledgerPerKg + logisticsPerKg) * bag.weight_kg;
+      
+      totalShadowCost += bagCost;
+      totalContractWeight += bag.weight_kg;
+    }
+
+    const shadowLandedCost = totalContractWeight > 0 ? totalShadowCost / totalContractWeight : 0;
+    
+    // Discrepancy is between Shadow Math and DB Calculated Landed Cost
+    const discrepancy = Math.abs(shadowLandedCost - dbLandedCost);
     const isMatch = discrepancy < 0.0001;
+    const margin = revenuePerKg - dbLandedCost;
 
     return {
-      calculated: Number(calculatedPrice.toFixed(4)),
-      actual: Number(actualPrice.toFixed(4)),
+      calculated: Number(shadowLandedCost.toFixed(4)),
+      actual: Number(dbLandedCost.toFixed(4)),
       discrepancy: Number(discrepancy.toFixed(4)),
-      isMatch
+      isMatch,
+      margin: Number(margin.toFixed(4)),
+      revenue: revenuePerKg
     };
   }
 }

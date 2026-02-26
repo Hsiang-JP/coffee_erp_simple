@@ -62,3 +62,4 @@ Implement `react-i18next` across the React application to support English (en) a
 1. Implement a simple Language Toggle component (EN / ES) in the main navigation.
 2. Verify that switching languages updates the UI dynamically without requiring a page reload.
 3. Verify that all numerical data (Weight, USD Costs, Cupping Scores) remains accurately formatted and is not broken by the language switch.
+4. Go through a round of translation check and code check. 

@@ -41,10 +41,14 @@ function initMemoryDB() {
   const schemaContent = fs.readFileSync(schemaPath, 'utf8');
   const coreSchemaMatch = schemaContent.match(/export\s+const\s+CORE_SCHEMA\s+=\s+`([\s\S]+?)`;/);
   const CORE_SCHEMA = coreSchemaMatch[1];
-  const statements = CORE_SCHEMA.split(';').map(s => s.trim()).filter(s => s.length > 0);
-  for (const sql of statements) {
-    try { db.exec(sql); } catch (err) {}
+  
+  // DatabaseSync.exec can handle multiple statements in a single call
+  try {
+    db.exec(CORE_SCHEMA);
+  } catch (err) {
+    console.error("Error loading schema:", err);
   }
+  
   return db;
 }
 
@@ -69,7 +73,7 @@ async function validateSeed(seed) {
     [farmId, producerId, `Farm ${seed}`, 'Cusco', 'Santa Teresa']);
 
   const clientId = `c-${seed}`;
-  exec("INSERT INTO clients (id, name, relationship) VALUES (?, ?, ?)", [clientId, `Client ${seed}`, 'VIP']);
+  exec("INSERT INTO clients (id, name, relationship, destination_city) VALUES (?, ?, ?, ?)", [clientId, `Client ${seed}`, 'VIP', 'Taipei']);
 
   // B. Generate Lots
   const lotCount = rng.nextInt(2, 5);
@@ -81,8 +85,8 @@ async function validateSeed(seed) {
     const totalWeight = rng.nextInt(500, 2000);
     const variety = rng.pick(['Geisha', 'Caturra', 'Typica']);
     
-    exec("INSERT INTO lots (id, public_id, farm_id, variety, total_weight_kg, base_farm_cost_per_kg) VALUES (?, ?, ?, ?, ?, ?)",
-      [lotId, `LOT-${seed}-${i}`, farmId, variety, totalWeight, baseCost]);
+    exec("INSERT INTO lots (id, public_id, farm_id, variety, process_method, total_weight_kg, base_farm_cost_per_kg) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [lotId, `LOT-${seed}-${i}`, farmId, variety, 'Washed', totalWeight, baseCost]);
 
     // C. Generate Ledger Costs
     const ledgerCount = rng.nextInt(1, 4);
