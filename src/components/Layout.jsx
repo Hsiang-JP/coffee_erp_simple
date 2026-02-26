@@ -8,10 +8,10 @@ const Layout = ({ children }) => {
   const isDevMode = useStore((state) => state.isDevMode);
   const toggleDevMode = useStore((state) => state.toggleDevMode);
 
-  // Agent 3: Check for ?dev=true in URL (Case-Insensitive) or /dev path
-  const searchParams = new URLSearchParams(window.location.search);
+  // Use URLSearchParams on location.search from React Router
+  const searchParams = new URLSearchParams(location.search);
   const isDevUrl = searchParams.get('dev')?.toLowerCase() === 'true';
-  const isDevPage = location.pathname === '/dev' || location.pathname === '/'; // Including / since home can be dev view
+  const isDevPage = location.pathname === '/dev'; 
   const showDevToggle = true;
 
   const navItems = [
@@ -21,7 +21,8 @@ const Layout = ({ children }) => {
     { name: t('nav.dataEntry'), path: '/entry' },
   ];
 
-  if (isDevUrl) {
+  if (isDevUrl || isDevPage) {
+    // Navigate to current path with the dev=true param preserved if we are already on a dev-enabled route
     navItems.push({ name: t('nav.adminConsole'), path: '/?dev=true' });
   }
 
