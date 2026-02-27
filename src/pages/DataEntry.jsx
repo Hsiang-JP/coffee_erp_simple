@@ -510,13 +510,13 @@ const ClientForm = () => {
   }, [clients]);
 
   const portOptions = useMemo(() => {
-    const defaults = ['Seattle', 'Yokohama', 'Hamburg', 'Oslo', 'Busan'];
+    const defaults = ['Tokyo Port', 'Busan Port', 'Hamburg', 'Oslo', 'Los Angeles'];
     const current = (clients || []).map(c => c.destination_port);
     return [...new Set([...defaults, ...current])].filter(Boolean).map(val => ({ id: val, name: val }));
   }, [clients]);
 
   const cityOptions = useMemo(() => {
-    const defaults = ['Portland', 'Tokyo', 'Berlin', 'Bergen', 'Seoul'];
+    const defaults = ['Taichung', 'Lima', 'Tokyo', 'Seoul', 'Amsterdam'];
     const current = (clients || []).map(c => c.destination_city);
     return [...new Set([...defaults, ...current])].filter(Boolean).map(val => ({ id: val, name: val }));
   }, [clients]);

@@ -122,7 +122,7 @@ async function executeRaw(sql, bind = [], retryCount = 0) {
     str = sqlite3.str_new(db, sql);
     const sqlPtr = sqlite3.str_value(str);
     const prepared = await sqlite3.prepare_v2(db, sqlPtr);
-    
+
     if (!prepared) return [];
     stmt = prepared.stmt;
 
@@ -200,6 +200,58 @@ export async function initDB() {
 
       await executeRaw('PRAGMA foreign_keys = ON;');
 
+      // ==========================================
+      // 🚀 AUTOMATIC SCHEMA MIGRATION ENGINE
+      // ==========================================
+      const TARGET_VERSION = 2; // The current version of your code's schema
+
+      let currentVersion = 0;
+      try {
+        // 🚨 FIX: Using your custom executeRaw function to read the version!
+        const versionResult = await executeRaw('PRAGMA user_version;');
+        
+        // Extract the number (handles different wrapper return formats)
+        if (versionResult && versionResult.length > 0) {
+          currentVersion = versionResult[0].user_version 
+            || versionResult[0][Object.keys(versionResult[0])[0]] 
+            || 0;
+        }
+      } catch (err) {
+        console.warn("Could not read version, assuming v0.", err);
+      }
+
+      if (currentVersion < TARGET_VERSION) {
+        console.log(`📦 Upgrading Database from v${currentVersion} to v${TARGET_VERSION}...`);
+        
+        // v2 Update: Complete Schema Factory Reset
+        if (currentVersion < 2) {
+          console.log('🧹 V2 Migration: Wiping all tables for a fresh schema rebuild...');
+          
+          const tablesToDrop = [
+            'bag_milestones',
+            'cupping_sessions',
+            'cost_ledger',
+            'bags',
+            'contracts',
+            'lots',
+            'farms',
+            'producers',
+            'clients',
+            'locations'
+          ];
+
+          for (const table of tablesToDrop) {
+            await executeRaw(`DROP TABLE IF EXISTS ${table};`);
+          }
+        }
+
+        // Save the new version number to the database file
+        await executeRaw(`PRAGMA user_version = ${TARGET_VERSION};`);
+        console.log('✅ Migration complete.');
+      }
+      // ==========================================
+
+      // This will now recreate any missing/dropped tables using your latest rules
       await alignSchema();
       await seedDataInternal();
       
@@ -210,7 +262,6 @@ export async function initDB() {
       
       if (err.message.includes('disk I/O error')) {
         console.error("🚨 DISK LOCK: I/O Error detected. IndexedDB is locked by another thread.");
-        // Redirect to a specialized repair page if this happens during the pitch
       }
       throw err;
     }

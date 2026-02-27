@@ -14,6 +14,19 @@ const CoffeeJourney = () => {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const advanceStage = useAdvanceStage();
 
+  // 🚨 Helper to safely translate stages for the UI
+  const getTranslatedStage = (stage) => {
+    if (!stage) return '';
+    const stageMap = {
+      'Farm': t('map.stages.farm', 'Farm'),
+      'Cora': 'Cora', 
+      'Port-Export': t('map.stages.export', 'Port-Export'),
+      'Port-Import': t('map.stages.import', 'Port-Import'),
+      'Final Destination': t('map.stages.destination', 'Final Destination')
+    };
+    return stageMap[stage] || stage;
+  };
+
   // 1. Simplified Logic: Use pre-calculated metrics from the store
   const { contractBags, metrics, currentStage, nextStage, varieties } = useMemo(() => {
     // Filter bags for this contract and attach variety from the lots table
@@ -21,7 +34,8 @@ const CoffeeJourney = () => {
       .filter(b => b.contract_id === selectedContractId)
       .map(b => ({
         ...b,
-        variety: lots.find(l => l.id === b.lot_id)?.variety || 'Unknown'
+        // 🚨 FIX: Translated "Unknown" fallback
+        variety: lots.find(l => l.id === b.lot_id)?.variety || t('common.unknown', 'Unknown')
       }));
 
     const contractMetric = contractMetrics.find(m => m.contract_id === selectedContractId);
@@ -55,7 +69,7 @@ const CoffeeJourney = () => {
       nextStage: getNextStage(contractMetric.current_stage),
       varieties: contractVarieties
     };
-  }, [coffees, lots, selectedContractId, contractMetrics]);
+  }, [coffees, lots, selectedContractId, contractMetrics, t]);
 
   const handleAdvance = async () => {
     if (!selectedContractId || !nextStage) return;
@@ -116,7 +130,8 @@ const CoffeeJourney = () => {
                         value={c.id} 
                         className="bg-stone-100 text-stone-500 italic p-2"
                       >
-                        {c.public_id} — {c.client_name} (FULFILLED)
+                        {/* 🚨 FIX: Translated FULFILLED tag */}
+                        {c.public_id} — {c.client_name} ({t('journey.fulfilledTag', 'FULFILLED')})
                       </option>
                     ))
                   }
@@ -131,7 +146,8 @@ const CoffeeJourney = () => {
                   isFulfilled ? 'bg-stone-100 border-stone-200' : 'bg-emerald-50 border-emerald-100'
                 }`}>
                   <span className={`text-[10px] uppercase font-black tracking-widest ${isFulfilled ? 'text-stone-400' : 'text-emerald-800'}`}>{t('journey.status')}</span>
-                  <span className={`text-xs font-bold ${isFulfilled ? 'text-stone-500' : 'text-emerald-900'}`}>{currentStage}</span>
+                  {/* 🚨 FIX: Translated Current Stage */}
+                  <span className={`text-xs font-bold ${isFulfilled ? 'text-stone-500' : 'text-emerald-900'}`}>{getTranslatedStage(currentStage)}</span>
                 </div>
 
                 {/* Contract Details Section */}
@@ -167,7 +183,8 @@ const CoffeeJourney = () => {
                 {/* Logistics Input - Hidden if Fulfilled */}
                 {nextStage && !isFulfilled && (
                   <div className="space-y-3 pt-2">
-                    <label className="text-[10px] uppercase font-black text-stone-400">{t('journey.addLogisticsCost')} (${nextStage})</label>
+                    {/* 🚨 FIX: Translated Next Stage in the label */}
+                    <label className="text-[10px] uppercase font-black text-stone-400">{t('journey.addLogisticsCost')} ({getTranslatedStage(nextStage)})</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
                       <input 
@@ -181,7 +198,8 @@ const CoffeeJourney = () => {
                       onClick={handleAdvance} disabled={isAdvancing}
                       className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {isAdvancing ? t('common.processing') : `${t('journey.moveTo')} ${nextStage}`}
+                      {/* 🚨 FIX: Translated Next Stage in the button */}
+                      {isAdvancing ? t('common.processing', 'Processing...') : `${t('journey.moveTo')} ${getTranslatedStage(nextStage)}`}
                     </button>
                   </div>
                 )}

@@ -28,7 +28,8 @@
     "contractFulfilled": "Contrato cumplido. Inventario liberado.",
     "totalLandedValue": "Valor Total en Destino (Prom/KG)",
     "farmLedger": "Finca + Libro Mayor",
-    "ops": "Operaciones"
+    "ops": "Operaciones",
+    "fulfilledTag": "COMPLETADO"
   },
   "allocation": {
     "title": "Asignación",
@@ -168,7 +169,14 @@
     }
   },
   "map": {
-    "logisticsNode": "Nodo Logístico"
+    "initialising": "Inicializando Isla Espacial...",
+    "logisticsNode": "Nodo Logístico",
+    "stages": {
+      "farm": "Finca",
+      "export": "Puerto de Exportación",
+      "import": "Puerto de Importación",
+      "destination": "Destino Final"
+    }
   },
   "stepper": {
     "timeline": "Línea de Tiempo de la Cadena de Valor",
@@ -194,7 +202,7 @@
         "desc": "Entregado a Tostaduría"
       }
     }
-  },
+  }, 
   "dev": {
     "title": "HUD de Desarrollo",
     "subtitle": "Control de Datos",
@@ -277,6 +285,7 @@
     "empty": "Vacío",
     "edit": "Editar",
     "selectFarm": "Seleccionar Finca",
-    "selectLot": "Seleccionar Lote"
+    "selectLot": "Seleccionar Lote",
+    "unknown": "Desconocido"
   }
 }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ComposableMap, Geographies, Geography, Marker, Line } from "react-simple-maps";
 import { useStore } from '../store/store';
 
-// This is the absolute source of truth for currentIdx
+// Keep this as English! It is the core logic engine.
 const STAGE_IDX = {
   'Farm': 0, 'Cora': 1, 'Port-Export': 2, 'Port-Import': 3, 'Final Destination': 4
 };
@@ -20,6 +20,18 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
   
   const geoUrl = "https://raw.githubusercontent.com/lotusms/world-map-data/main/world.json";
   const currentIdx = STAGE_IDX[currentStage] || 0;
+
+  // 🚨 Helper to translate the UI label without breaking the logic
+  const getTranslatedStage = (stage) => {
+    const stageMap = {
+      'Farm': t('map.stages.farm', 'Farm'),
+      'Cora': 'Cora', // Proper nouns usually aren't translated
+      'Port-Export': t('map.stages.export', 'Port-Export'),
+      'Port-Import': t('map.stages.import', 'Port-Import'),
+      'Final Destination': t('map.stages.destination', 'Final Destination')
+    };
+    return stageMap[stage] || stage;
+  };
 
   const getCoords = (searchQueries) => {
     const queries = Array.isArray(searchQueries) ? searchQueries : [searchQueries];
@@ -72,16 +84,12 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     // 0. AT THE FARM
     uniqueRegions.forEach(region => {
       const farmCoords = getCoords([region, 'Peru']) || [-77.04, -12.04]; 
-      // Marker: Farm (Appears immediately at index 0)
       markers.push({ name: region, coordinates: farmCoords, stage: 0 }); 
-      // Line: Farm -> Cora (Draws when moving to index 1)
       lines.push({ from: farmCoords, to: coraCoords, stageIndex: 1 });
     });
 
     // 1. AT CORA
-    // Marker: Cora (Appears when index reaches 1)
     markers.push({ name: 'Cora Warehouse', coordinates: coraCoords, stage: 1 });
-    // Line: Cora -> Export Port (Draws when moving to index 2)
     lines.push({ from: coraCoords, to: exportPortCoords, stageIndex: 2 });
 
     let destCoords = [139.77, 35.62]; 
@@ -105,19 +113,14 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
     }
 
     // 2. AT EXPORT PORT
-    // Marker: Callao (Appears when index reaches 2)
     markers.push({ name: 'Export Port', coordinates: exportPortCoords, stage: 2 });
-    // Line: Callao -> Taiwan (Draws when moving across ocean to index 3)
     lines.push({ from: exportPortCoords, to: destCoords, stageIndex: 3 });
 
     // 3. AT IMPORT PORT
-    // Marker: Taiwan Port (Appears when index reaches 3)
     markers.push({ name: 'Import Port', coordinates: destCoords, stage: 3 });
-    // Line: Taiwan Port -> Final Roastery (Draws when moving to index 4)
     lines.push({ from: destCoords, to: finalCoords, stageIndex: 4 });
 
     // 4. AT FINAL DESTINATION
-    // Marker: Roastery (Appears when index reaches 4)
     markers.push({ name: 'Final Roastery', coordinates: finalCoords, stage: 4 });
 
     return { lines, markers };
@@ -154,8 +157,6 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
         </Geographies>
         
         {network.lines.map((line, i) => {
-          // A line should ONLY render if the current stage is greater than or equal to the line's designated stage.
-          // Example: The ocean line (stageIndex 3) will only draw when currentIdx is 3 (Port-Import) or 4 (Final).
           if (currentIdx < line.stageIndex) return null;
 
           return (
@@ -199,7 +200,8 @@ const CoffeeMap = React.memo(({ currentStage = 'Farm', bags = [], contractId = n
       <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md p-4 rounded-[1.5rem] border border-stone-100 shadow-sm">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">{t('map.logisticsNode', 'Logistics Node')}</p>
         <p className="text-sm font-black text-zinc-900 mt-1 uppercase italic">
-          {currentStage}
+          {/* 🚨 Use the translated string here! */}
+          {getTranslatedStage(currentStage)}
         </p>
       </div>
     </div>

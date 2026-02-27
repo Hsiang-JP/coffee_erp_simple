@@ -28,7 +28,8 @@
     "contractFulfilled": "Contract fulfilled. Inventory cleared.",
     "totalLandedValue": "Total Landed Value (Avg/KG)",
     "farmLedger": "Farm + Ledger",
-    "ops": "Ops"
+    "ops": "Ops",
+    "fulfilledTag": "FULFILLED"
   },
   "allocation": {
     "title": "Smart",
@@ -169,7 +170,14 @@
     }
   },
   "map": {
-    "logisticsNode": "Logistics Node"
+    "initialising": "Initialising Spatial Island...",
+    "logisticsNode": "Logistics Node",
+    "stages": {
+      "farm": "Farm",
+      "export": "Port-Export",
+      "import": "Port-Import",
+      "destination": "Final Destination"
+    }
   },
   "stepper": {
     "timeline": "Value Chain Timeline",
@@ -278,6 +286,7 @@
     "empty": "Empty",
     "edit": "Edit",
     "selectFarm": "Select Farm",
-    "selectLot": "Select Lot"
+    "selectLot": "Select Lot",
+    "unknown": "Unknown"
   }
 }

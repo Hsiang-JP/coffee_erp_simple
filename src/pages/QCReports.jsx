@@ -164,7 +164,7 @@ const QCReports = () => {
               {/* TOTAL SCORE */}
               <div className="mt-8 pt-8 border-t border-zinc-800 relative z-10">
                 <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block mb-1">{t('qc.finalTotalScore')}</span>
-                <span className="text-6xl font-black text-emerald-400 tracking-tighter">{report.total_score}</span>
+                <span className="text-6xl font-black text-emerald-400 tracking-tighter">{report.final_score}</span>
               </div>
             </div>
             
