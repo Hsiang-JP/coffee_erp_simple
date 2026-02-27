@@ -3,7 +3,6 @@ import * as SQLite from 'wa-sqlite';
 import { IDBMinimalVFS } from 'wa-sqlite/src/examples/IDBMinimalVFS.js';
 import { generateStockCodes } from '../utils/warehouseUtils';
 import { CORE_SCHEMA } from './schema';
-import { SEED_DATA } from './seedData';
 
 let sqlite3 = null;
 let db = null;
@@ -67,8 +66,7 @@ export async function execute(sql, bind = []) {
  * Helper to wrap database operations in a transaction.
  * Ensures that all operations within the callback are executed atomically
  * as a single batch in the execution queue.
- * 
- * @param {Function} callback - Async function containing database operations.
+ * * @param {Function} callback - Async function containing database operations.
  * @returns {Promise<any>} - The result of the callback.
  */
 export async function wrapInTransaction(callback) {
@@ -207,7 +205,6 @@ export async function initDB() {
 
       let currentVersion = 0;
       try {
-        // 🚨 FIX: Using your custom executeRaw function to read the version!
         const versionResult = await executeRaw('PRAGMA user_version;');
         
         // Extract the number (handles different wrapper return formats)
@@ -253,7 +250,7 @@ export async function initDB() {
 
       // This will now recreate any missing/dropped tables using your latest rules
       await alignSchema();
-      await seedDataInternal();
+      // 🚨 Seed Script Removed! Database stays empty.
       
       console.log('🚀 DB Ready');
       return db;
@@ -329,33 +326,6 @@ export async function alignSchema() {
 
 async function runMigrationsInternal() {
   await alignSchema();
-}
-
-export async function seedDataInternal() {
-  const checkRes = await executeRaw("SELECT count(*) as count FROM producers");
-  if (checkRes.length > 0 && checkRes[0].count > 0) return; 
-
-  console.log("🌱 Seeding Demo Data...");
-  
-  try {
-    await executeRaw('BEGIN TRANSACTION');
-    for (const [table, rows] of Object.entries(SEED_DATA)) {
-      for (const row of rows) {
-        const keys = Object.keys(row);
-        const columns = keys.join(', ');
-        const placeholders = keys.map(() => '?').join(', ');
-        const values = Object.values(row);
-        
-        const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
-        await executeRaw(sql, values);
-      }
-    }
-    await executeRaw('COMMIT');
-  } catch (err) {
-    await executeRaw('ROLLBACK');
-    console.error("❌ Seeding failed:", err);
-    throw err;
-  }
 }
 
 export { generateStockCodes };

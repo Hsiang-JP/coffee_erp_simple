@@ -563,7 +563,7 @@ const ClientForm = () => {
             <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.client.legalName')}</label>
             <input 
               type="text" value={name} onChange={(e) => setName(e.target.value)} 
-              placeholder="e.g. Blue Bottle"
+              placeholder="e.g. Roastery"
               className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500" 
             />
           </div>
