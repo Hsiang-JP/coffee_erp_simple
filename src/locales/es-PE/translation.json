@@ -128,7 +128,21 @@
       "roundingTo": "Redondeando a",
       "bags": "sacos",
       "baseFarmCost": "Costo Base en Finca ($/kg) *",
-      "submit": "Autorizar Compra y Generar Sacos"
+      "submit": "Autorizar Compra y Generar Sacos",
+      "processes": {
+        "Washed": "Lavado",
+        "Natural": "Natural",
+        "Honey": "Honey (Miel)",
+        "Anaerobic": "Anaeróbico"
+      },
+      "varieties": {
+        "Typica": "Típica",
+        "Caturra": "Caturra",
+        "Bourbon": "Borbón",
+        "Geisha": "Geisha",
+        "SL28": "SL28",
+        "Pacamara": "Pacamara"
+      }
     },
     "costLedger": {
       "title": "Libro Mayor de Operaciones",
@@ -138,7 +152,16 @@
       "costCategory": "Categoría de Costo *",
       "amount": "Monto (USD) *",
       "notes": "Notas / Descripción",
-      "submit": "Autorizar Gasto y Actualizar Valor del Lote"
+      "submit": "Autorizar Gasto y Actualizar Valor del Lote",
+      "categories": {
+        "Transportation": "Transporte",
+        "Milling": "Trillado / Pilado",
+        "Drying": "Secado",
+        "Sorting": "Clasificación / Selección",
+        "Lab/Grading": "Laboratorio / Calificación",
+        "Packaging": "Empacado",
+        "Other": "Otro"
+      }
     },
     "client": {
       "title": "Registro de Cliente",

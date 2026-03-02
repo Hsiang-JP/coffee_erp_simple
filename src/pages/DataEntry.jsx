@@ -12,12 +12,25 @@ const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
+  // 1. Find the currently selected option object based on the ID (value)
+  const selectedOption = options.find(o => o.id === value);
+
+  // 2. Determine what to show in the text box
+  const getDisplayName = () => {
+    // If the box is open, we want to show what the user is currently typing
+    if (isOpen) return search; 
+    
+    // If the box is closed, we MUST show the translated name.
+    // Fallback to the raw value only if the option isn't in our translated list yet.
+    return selectedOption ? selectedOption.name : (value || '');
+  };
+
   const filtered = options.filter(opt => 
     opt.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const exactMatch = options.find(opt => 
-    opt.name.toLowerCase() === search.toLowerCase()
+    opt.name.toLowerCase() === search.toLowerCase().trim()
   );
 
   return (
@@ -26,11 +39,29 @@ const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
       <input 
         type="text"
         placeholder={placeholder}
-        value={isOpen ? search : (options.find(o => o.id === value)?.name || search || value)}
-        onFocus={() => { setIsOpen(true); setSearch(''); }}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        // 🚨 This now correctly pulls either the active search or the translated name
+        value={getDisplayName()} 
+        onFocus={() => { 
+          setIsOpen(true); 
+          // 🚨 THE FIX: Pre-fill the search with the TRANSLATED name, not the raw value
+          setSearch(selectedOption ? selectedOption.name : (value || '')); 
+        }}
+        onBlur={() => {
+          setTimeout(() => {
+            const cleanSearch = search.trim();
+            if (cleanSearch !== '') {
+              if (exactMatch) {
+                onChange(exactMatch.id); // Save the English ID
+              } else if (onAdd && cleanSearch !== (selectedOption ? selectedOption.name : value)) {
+                // Only add if the typed string doesn't match the currently displayed name
+                onAdd(cleanSearch); 
+              }
+            }
+            setIsOpen(false);
+          }, 200);
+        }}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500"
+        className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
       />
 
       {isOpen && (
@@ -39,18 +70,24 @@ const Combobox = ({ options, value, onChange, onAdd, label, placeholder }) => {
             <div 
               key={opt.id}
               className="p-3 hover:bg-emerald-50 rounded-xl cursor-pointer text-sm font-medium transition-colors"
-              onClick={() => { onChange(opt.id); setIsOpen(false); setSearch(opt.name); }}
+              onMouseDown={() => {
+                onChange(opt.id); // Send English ID back to parent state
+                setSearch(opt.name); // Set the Spanish Name in the local search box
+                setIsOpen(false);
+              }}
             >
               {opt.name}
             </div>
           ))}
-
-          {!exactMatch && search.length > 0 && (
+          {!exactMatch && search.trim().length > 0 && (
             <div 
               className="p-3 mt-1 bg-emerald-50 text-emerald-700 rounded-xl cursor-pointer text-sm font-black uppercase tracking-wider border border-emerald-100"
-              onClick={() => { onAdd(search); setIsOpen(false); }}
+              onMouseDown={() => {
+                onAdd(search.trim());
+                setIsOpen(false);
+              }}
             >
-              + Add "{search}"
+              + Add "{search.trim()}"
             </div>
           )}
         </div>
@@ -211,18 +248,34 @@ const BuyCoffeeForm = () => {
 
   const BAG_SIZE = 69.0;
 
-  // --- Dynamic Searchable Options ---
-  const varietyOptions = useMemo(() => {
-    const defaults = ['Typica', 'Caturra', 'Geisha', 'Bourbon', 'Catimor'];
-    const current = lots.map(l => l.variety);
-    return [...new Set([...defaults, ...current])].filter(Boolean).map(v => ({ id: v, name: v }));
-  }, [lots]);
 
+  // 1. Process Methods (e.g., Washed -> Lavado)
   const processOptions = useMemo(() => {
     const defaults = ['Washed', 'Natural', 'Honey', 'Anaerobic'];
     const current = lots.map(l => l.process_method);
-    return [...new Set([...defaults, ...current])].filter(Boolean).map(p => ({ id: p, name: p }));
-  }, [lots]);
+    
+    return [...new Set([...defaults, ...current])]
+      .filter(Boolean)
+      .map(p => ({
+        id: p, 
+        // 🚨 FIX: Added "entry." to match your dictionary structure!
+        name: t(`entry.buyCoffee.processes.${p}`, p) 
+      }));
+  }, [lots, t]);
+
+  // 2. Coffee Varieties (e.g., Typica -> Típica)
+  const varietyOptions = useMemo(() => {
+    const defaults = ['Typica', 'Caturra', 'Bourbon', 'Geisha', 'SL28', 'Pacamara'];
+    const current = lots.map(l => l.variety);
+    
+    return [...new Set([...defaults, ...current])]
+      .filter(Boolean)
+      .map(v => ({
+        id: v, 
+        // 🚨 FIX: Added "entry." here as well!
+        name: t(`entry.buyCoffee.varieties.${v}`, v) 
+      }));
+  }, [lots, t]);
 
   // --- Inventory Calibration Math ---
   const roundedWeight = useMemo(() => {
@@ -441,21 +494,29 @@ const CostLedgerForm = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          {/* Cost Type matching CHECK(cost_type IN (...)) */}
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">{t('entry.costLedger.costCategory')}</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2">
+              {t('entry.costLedger.costCategory')}
+            </label>
             <select 
               value={costType} 
               onChange={(e) => setCostType(e.target.value)}
-              className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800"
+              className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-bold text-zinc-800 outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="Transportation">Transportation</option>
-              <option value="Milling">Milling</option>
-              <option value="Drying">Drying</option>
-              <option value="Sorting">Sorting</option>
-              <option value="Lab/Grading">Lab/Grading</option>
-              <option value="Packaging">Packaging</option>
-              <option value="Other">Other</option>
+              {[
+                "Transportation", 
+                "Milling", 
+                "Drying", 
+                "Sorting", 
+                "Lab/Grading", 
+                "Packaging", 
+                "Other"
+              ].map(type => (
+                <option key={type} value={type}>
+                  {/* 🚨 FIX: Path MUST start with 'entry.' to match your dictionary */}
+                  {t(`entry.costLedger.categories.${type}`, type)}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -478,7 +539,7 @@ const CostLedgerForm = () => {
           <textarea 
             value={notes} 
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Trucking from Quillabamba to Cusco warehouse"
+            placeholder=""
             className="w-full bg-stone-50 border-none rounded-xl p-4 text-sm font-medium h-24"
           />
         </div>

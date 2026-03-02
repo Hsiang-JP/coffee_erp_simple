@@ -128,7 +128,21 @@
       "roundingTo": "Rounding to",
       "bags": "bags",
       "baseFarmCost": "Base Farm Cost ($/kg) *",
-      "submit": "Authorize Purchase & Generate Bags"
+      "submit": "Authorize Purchase & Generate Bags",
+      "processes": {
+        "Washed": "Washed",
+        "Natural": "Natural",
+        "Honey": "Honey",
+        "Anaerobic": "Anaerobic"
+      },
+      "varieties": {
+        "Typica": "Typica",
+        "Caturra": "Caturra",
+        "Bourbon": "Bourbon",
+        "Geisha": "Geisha",
+        "SL28": "SL28",
+        "Pacamara": "Pacamara"
+      }
     },
     "costLedger": {
       "title": "Operations Ledger",
@@ -138,7 +152,16 @@
       "costCategory": "Cost Category *",
       "amount": "Amount (USD) *",
       "notes": "Notes / Description",
-      "submit": "Authorize Expense & Update Lot Value"
+      "submit": "Authorize Expense & Update Lot Value",
+      "categories": {
+        "Transportation": "Transportation",
+        "Milling": "Milling",
+        "Drying": "Drying",
+        "Sorting": "Sorting",
+        "Lab/Grading": "Lab/Grading",
+        "Packaging": "Packaging",
+        "Other": "Other"
+      }
     },
     "client": {
       "title": "Client Onboarding",

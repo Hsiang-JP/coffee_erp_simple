@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../store/store.js';
 import { getNextStage } from '../db/dbSetup';
 import { useAdvanceStage } from '../hooks/useCoffeeData';
+// 🚨 Added the useDevData import
+import { useDevData } from '../hooks/useDevData'; 
 import CoffeeMap from '../components/CoffeeMap.jsx';
 import CostStepper from '../components/CostStepper.jsx';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +16,10 @@ const CoffeeJourney = () => {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const advanceStage = useAdvanceStage();
 
-  // 🚨 Helper to safely translate stages for the UI
+  // 🚨 Extract the Geo Sync functions from your hook
+  const { handleSync, syncStatus, isSyncing } = useDevData();
+
+  // Helper to safely translate stages for the UI
   const getTranslatedStage = (stage) => {
     if (!stage) return '';
     const stageMap = {
@@ -34,7 +39,6 @@ const CoffeeJourney = () => {
       .filter(b => b.contract_id === selectedContractId)
       .map(b => ({
         ...b,
-        // 🚨 FIX: Translated "Unknown" fallback
         variety: lots.find(l => l.id === b.lot_id)?.variety || t('common.unknown', 'Unknown')
       }));
 
@@ -85,7 +89,6 @@ const CoffeeJourney = () => {
     }
   };
 
-  // UI Expert Logic: Determine if the selected contract is already finished
   const isFulfilled = contracts.find(c => c.id === selectedContractId)?.status === 'Fulfilled';
 
   return (
@@ -130,7 +133,6 @@ const CoffeeJourney = () => {
                         value={c.id} 
                         className="bg-stone-100 text-stone-500 italic p-2"
                       >
-                        {/* 🚨 FIX: Translated FULFILLED tag */}
                         {c.public_id} — {c.client_name} ({t('journey.fulfilledTag', 'FULFILLED')})
                       </option>
                     ))
@@ -146,7 +148,6 @@ const CoffeeJourney = () => {
                   isFulfilled ? 'bg-stone-100 border-stone-200' : 'bg-emerald-50 border-emerald-100'
                 }`}>
                   <span className={`text-[10px] uppercase font-black tracking-widest ${isFulfilled ? 'text-stone-400' : 'text-emerald-800'}`}>{t('journey.status')}</span>
-                  {/* 🚨 FIX: Translated Current Stage */}
                   <span className={`text-xs font-bold ${isFulfilled ? 'text-stone-500' : 'text-emerald-900'}`}>{getTranslatedStage(currentStage)}</span>
                 </div>
 
@@ -183,7 +184,6 @@ const CoffeeJourney = () => {
                 {/* Logistics Input - Hidden if Fulfilled */}
                 {nextStage && !isFulfilled && (
                   <div className="space-y-3 pt-2">
-                    {/* 🚨 FIX: Translated Next Stage in the label */}
                     <label className="text-[10px] uppercase font-black text-stone-400">{t('journey.addLogisticsCost')} ({getTranslatedStage(nextStage)})</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
@@ -198,7 +198,6 @@ const CoffeeJourney = () => {
                       onClick={handleAdvance} disabled={isAdvancing}
                       className="w-full bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest p-5 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {/* 🚨 FIX: Translated Next Stage in the button */}
                       {isAdvancing ? t('common.processing', 'Processing...') : `${t('journey.moveTo')} ${getTranslatedStage(nextStage)}`}
                     </button>
                   </div>
@@ -233,7 +232,33 @@ const CoffeeJourney = () => {
       </div>
 
       {/* Main Content: Map & Stepper */}
-      <div className="lg:col-span-8 space-y-6">
+      <div className="lg:col-span-8 flex flex-col gap-6">
+        
+        {/* 🚨 GEO SYNC HEADER: Added right above the map */}
+        <div className="flex justify-between items-end px-2">
+           <h3 className="text-xl font-black text-zinc-900 uppercase italic tracking-tighter">
+             {t('map.title', 'Live Tracking Map')}
+           </h3>
+           <div className="flex items-center gap-4">
+             {syncStatus && (
+               <span className="text-[10px] font-mono font-bold text-amber-600 uppercase tracking-widest animate-pulse">
+                 {syncStatus}
+               </span>
+             )}
+             <button
+               onClick={handleSync}
+               disabled={isSyncing}
+               className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${
+                 isSyncing 
+                   ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed' 
+                   : 'bg-white text-emerald-600 hover:bg-emerald-50 border-emerald-100 hover:border-emerald-200 active:scale-95'
+               }`}
+             >
+               {isSyncing ? t('common.syncing', 'Syncing...') : t('map.syncGeodata', 'Sync Geodata')}
+             </button>
+           </div>
+        </div>
+
         <div className="bg-white h-[500px] rounded-3xl shadow-sm border border-stone-200 p-2 relative overflow-hidden">
           <CoffeeMap 
             currentStage={currentStage} 
@@ -241,6 +266,7 @@ const CoffeeJourney = () => {
             contractId={selectedContractId} 
           />
         </div>
+        
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
           <CostStepper currentStage={currentStage} costs={metrics?.raw_data} />
         </div>
